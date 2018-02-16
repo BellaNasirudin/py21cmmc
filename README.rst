@@ -73,6 +73,13 @@ Or to get the bleeding edge::
 
     pip install git+git://github.com/steven-murray/py21cmmc.git
 
+Quick Usage
+===========
+
+Either use the functions from ``py21cmmc._utils``, or use the provided CLI::
+
+    $ py21cmmc --help
+    
 Documentation
 =============
 
