@@ -1,0 +1,16 @@
+[paths]
+source =
+   src/py21cmmc
+   */site-packages/py21cmmc
+
+[run]
+branch = true
+source =
+    py21cmmc
+    tests
+parallel = true
+
+[report]
+show_missing = true
+precision = 2
+omit = *migrations*
