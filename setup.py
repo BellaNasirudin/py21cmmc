@@ -90,11 +90,11 @@ setup(
     },
     ext_modules=[
         Extension(
-            splitext(relpath(path, 'src').replace(os.sep, '.'))[0],
-            sources=[path],
-            include_dirs=[dirname(path)]
+            'py21cmmc._21cmfast.drive_21cmMC_streamlined',
+            sources=['src/py21cmmc/_21cmfast/drive_21cmMC_streamlined.c'],
+            libraries=['m', 'gsl', 'gslcblas', 'fftw3f_omp', 'fftw3f'],
+            include_dirs=['/usr/local/include', 'src/py21cmmc/_21cmfast'],
+            extra_compile_args = ['-fopenmp', '-Ofast']
         )
-        for root, _, _ in os.walk('src')
-        for path in glob(join(root, '*.c'))
     ],
 )

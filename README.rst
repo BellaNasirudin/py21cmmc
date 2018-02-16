@@ -56,7 +56,9 @@ Overview
 
 .. end-badges
 
-A set of python bindings for 21cmFAST allowing native Python plugins for 21cmMC
+A set of python bindings for 21cmFAST allowing native Python plugins for 21cmMC.
+
+Note: this package has just started. Don't try to use it yet.
 
 * Free software: MIT license
 
@@ -66,6 +68,10 @@ Installation
 ::
 
     pip install py21cmmc
+
+Or to get the bleeding edge::
+
+    pip install git+git://github.com/steven-murray/py21cmmc.git
 
 Documentation
 =============
