@@ -15,19 +15,20 @@ Why does this file exist, and why not put this in __main__?
   Also see (1) from http://click.pocoo.org/5/setuptools/#setuptools-integration
 """
 import click
-from ._utils import get_single_box, get_likelihood
-import os.path as pth
+from ._utils import get_single_box
 import yaml
 import numpy as np
+import importlib
 
 main = click.Group()
 
 @main.command()
 @click.argument("config", type=click.Path(exists=True, dir_okay=False))
 @click.option("--ps/--no-ps", default=False, help="generate the power spectrum of the box")
-@click.option("--ll/--no-ll", default=False, help='determine the likelihood (eg. chi-square) against data')
+@click.option("--likelihood", default="traditional_c_based", help='the kind of likelihood to use')
 @click.option("--output", type=click.Path(), default=None)
-def single(config, ps, ll, output):
+@click.option("--no-ll/--ll", default=False, help="don't determine the likelihood")
+def single(config, ps, likelihood, output, no_ll):
     with open(config,"r") as f:
         cfg = yaml.load(f)
 
@@ -40,14 +41,15 @@ def single(config, ps, ll, output):
     else:
         delta_T, properties = outputs
 
-    if ll:
-        likelihood = get_likelihood(cfg['noisedir'], PS, cfg['telescope_name'], cfg['redshifts'],
-                                    cfg['zeta_val'], cfg['MFP_val'], cfg['TVir_val'],
-                                    foreground_cut = cfg['foreground_cut'],
-                                    shot_noise_cut= cfg['shot_noise_cut'],
-                                    ModUncert = cfg['ModUncert'])
+    if not no_ll:
+        # Import the correct function
+        module = importlib.import_module("py21cmmc.likelihoods.%s"%likelihood)
 
-        print("Log-Likelihood: ", likelihood)
+        ll = module.get_likelihood(delta_T, None, properties, cfg['redshifts'],
+                                   **cfg['likelihood_kwargs']
+                                   )
+
+        print("Log-Likelihood: ", ll)
 
     if output is not None:
         with open(output, 'wb') as f:

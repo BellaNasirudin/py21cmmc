@@ -1,15 +1,11 @@
 # DIRECTORIES
 boxdir: ~/Documents/Projects/Foregrounds/21CMMC_NoFileIO/21CMMC_NoFileIO_Source/Boxes
-noisedir: ~/Documents/Projects/Foregrounds/21CMMC_NoFileIO/21CMMC_NoFileIO_Source/Programs/NoiseData
 
 # Choose appropriate redshifts to calculate
 redshifts: [9.]
 
-# Set for the desired telescope ['SKA_halveddipoles_compact', 'HERA331'] corresponding to the file structure in
-# "NoiseData"
-telescope_name: HERA331
 
-# Fiducial model parameters. Only used if these are saved in the file names for the error files
+# Fiducial model parameters.
 zeta_val: 30.0
 MFP_val: 15.0
 TVir_val: 30000.0
@@ -19,11 +15,20 @@ TVir_val: 30000.0
 # Including a modelling uncertainty. This accounts for differences between semi-numerical and N-body/Hydro/RT
 # prescriptions for EoR simulations. Setting to 0.0 will remove the uncertainty. 0.10 corresponds to 10 per cent
 # modelling uncertainty
-foreground_cut: 0.15
-shot_noise_cut: 1.0
-ModUncert: 0.10
+
+# The likelihood kwargs are specific to a certain kind of likelihood, which can be pluggable.
+likelihood_kwargs: {
+    telescope_name: HERA331,
+    foreground_cut: 0.15,
+    shot_noise_cut: 1.0,
+    ModUncert: 0.10,
+    zeta: 30.0,
+    mfp: 15.0,
+    tvir: 30000.0,
+    noisedir: ~/Documents/Projects/Foregrounds/21CMMC_NoFileIO/21CMMC_NoFileIO_Source/Programs/NoiseData
+}
 
 # Set ranges for the parameters (only apply to MCMC).
-zeta_range: [5., 100.]
-mfp_range: [2., 20.]
-log10tvir_range: [4, 5.5]
+# zeta_range: [5., 100.]
+# mfp_range: [2., 20.]
+# log10tvir_range: [4, 5.5]

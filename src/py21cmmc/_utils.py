@@ -7,43 +7,6 @@ import os.path as pth
 from . import get_box_parameters, drive_21cmMC, c_generatePS, c_likelihood_chisquare
 
 
-def read_noise(direc, tsc_name, redshifts, zeta, mfp, tvir):
-    "Read NoiseData files"
-    # Set for the desired telescope ['SKA_halveddipoles_compact', 'HERA331'] corresponding to the file structure in
-    # "NoiseData"
-    ErrorFileTelescope_Name = '%s' % (tsc_name)
-
-    # Read in the length of the PS files for np arrays. The length of the files should be consistent
-    # Note: This should be removed from final version.
-    k_values = np.loadtxt(
-        pth.expanduser(pth.join(direc, 'MockObs_%s_PS_250Mpc_z%s_%s_%s_%s.txt' % (tsc_name, redshifts[0],
-                                                            zeta, mfp, tvir))),
-        usecols=(0,)
-    )
-    multi_z_mockobs_k = np.zeros((len(redshifts), len(k_values)))
-    multi_z_mockobs_PS = np.zeros((len(redshifts), len(k_values)))
-    multi_z_PS_Error = np.zeros((len(redshifts), len(k_values)))
-
-    # Read in the mock 21cm PS observation. Read in both k and the dimensionless PS
-    # Important Note: The mock observations need to be binned "exactly" the same as the resolution of the sampled boxes
-    # by 21cmFAST. If not, the chi^2 statistic is still going to be computed, but it will be wrong.
-    for i, redshift in enumerate(redshifts):
-        multi_z_mockobs_k[i], multi_z_mockobs_PS[i] = np.loadtxt(
-            pth.expanduser(pth.join(direc,'MockObs_%s_PS_250Mpc_z%s_%s_%s_%s.txt' % (
-            tsc_name, redshift, zeta, mfp, tvir))), usecols=(0, 1), unpack=True)
-
-        # Total noise sensitivity as computed from 21cmSense. This total noise combines both the Poisson component of the
-        # observationally measured PS (the high res 21cm FAST simulation) and the instrument thermal noise profile.
-        multi_z_PS_Error[i] = np.loadtxt(pth.expanduser(pth.join(direc,'TotalError_%s_PS_250Mpc_z%s_%s_%s_%s.txt' % (
-            ErrorFileTelescope_Name, redshift, zeta, mfp, tvir))), usecols=(1,))
-
-    # Bad value flag returns a value far away from the highest likelihood value to ensure the MCMC never enters into
-    # this region. This flag will be typically raised for a measured PS from a completely ionised simulation box
-    # (neutral fraction zero). Hence, is just the chi^{2} for the PS itself (i.e. PS zero) multiplied by 100 to really
-    # ensure this parameter combination can never be chosen
-    bad_value_flag = -0.5 * (100. * sum(np.square((multi_z_mockobs_PS[0]) / multi_z_PS_Error[0])))
-
-    return multi_z_mockobs_k, multi_z_mockobs_PS, multi_z_PS_Error
 
 
 def read_boxes(boxdir, redshifts):
@@ -133,18 +96,3 @@ def get_single_box(boxdir, redshifts, zeta, mfp, log10_tvir, generate_ps=False):
         return delta_T, output, PowerSpec
     else:
         return delta_T, output
-
-
-def get_likelihood(direc, powerspec, tsc_name, redshifts, zeta, mfp, tvir, **ll_kwargs):
-    multi_z_mockobs_k, multi_z_mockobs_PS, multi_z_PS_Error = read_noise(direc, tsc_name, redshifts, zeta, mfp, tvir)
-
-    chi_squared = 0
-    for i, (mock, sigma) in enumerate(zip(multi_z_mockobs_PS, multi_z_PS_Error)):
-        chi_squared += c_likelihood_chisquare(
-            powerspec[i], mock, sigma,
-            ll_kwargs['foreground_cut'],
-            ll_kwargs['shot_noise_cut'],
-            ll_kwargs['ModUncert']
-        )
-
-    return chi_squared

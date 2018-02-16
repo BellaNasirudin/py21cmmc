@@ -58,7 +58,7 @@ Overview
 
 A set of python bindings for 21cmFAST allowing native Python plugins for 21cmMC.
 
-Note: this package has just started. Don't try to use it yet.
+Note: this package has just started. It doesn't do any MCMC at the moment.
 
 * Free software: MIT license
 
