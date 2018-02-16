@@ -76,6 +76,9 @@ setup(
     ],
     install_requires=[
         'click',
+        'tqdm',
+        'numpy',
+        'pyyaml'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={

@@ -65,7 +65,10 @@ Note: this package has just started. Don't try to use it yet.
 Installation
 ============
 
-::
+First, you'll need to have the required C libraries: ``gsl``, ``fftw`` (make sure you install the floating-point version!)
+``openmp`` and ``gslcblas``.
+
+Then just do::
 
     pip install py21cmmc
 
@@ -79,7 +82,14 @@ Quick Usage
 Either use the functions from ``py21cmmc._utils``, or use the provided CLI::
 
     $ py21cmmc --help
-    
+
+At this point, the basic workflow is to first run ``./init`` and ``./perturb_field`` using a separate working ``21cmFAST``
+installation. Do all the redshifts that are required (with ``./perturb_field``). Then you need to create a config file -- an
+example is given in this repo as ``example_config.yml``. Make sure all the settings in that file are as you want them
+(especially the directories containing the boxes you just made). Then use the CLI as written above, with the config
+file as an argument. If the ``output`` option is specified, the full deltaT box will be written to that file (in fact, it
+will be several deltaT boxes, one for each redshift).
+
 Documentation
 =============
 
