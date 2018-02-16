@@ -90,6 +90,17 @@ example is given in this repo as ``example_config.yml``. Make sure all the setti
 file as an argument. If the ``output`` option is specified, the full deltaT box will be written to that file (in fact, it
 will be several deltaT boxes, one for each redshift).
 
+TODO (Before Release)
+=====================
+- Work out how to change global variables from Python, if possible (otherwise, its hard to re-compile when its installed).
+- Add all the MCMC stuff.
+- Change to newer version of 21CMFAST
+- Add ./init and ./perturb_field (at least) so the whole process can be done without installing anything else.
+- Figure out how to use git submodules to do that^.
+- Documentation
+- Tests
+- All the other little bits that polish the package off.
+
 Documentation
 =============
 
