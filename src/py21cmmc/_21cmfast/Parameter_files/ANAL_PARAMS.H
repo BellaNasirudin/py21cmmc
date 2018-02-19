@@ -3,14 +3,14 @@
 
 
 /******** BEGIN USER CHANGABLE DEFINITIONS   **********/
-/* 
+/*
    Minimum halo mass counted as contributing ionizing photons in the bubble code.
-   
+
 */
 #define ION_M_MIN (double) -1
-/* OR define it as a redshift-dependent halo virial temperature.. 
+/* OR define it as a redshift-dependent halo virial temperature..
  NOTE: SET THE ONE YOU AREN'T USING TO A NEGATIVE VALUE.
- NOTE: If you are using the halo finder and studying redshift evolution over a 
+ NOTE: If you are using the halo finder and studying redshift evolution over a
        small redshift interval, it is probably best to use the ION_M_MIN option,
        since the discretization of the halo mass by the halo finder might lead
        to redshift discontinuities.
@@ -24,17 +24,17 @@
 		in the linear regime at the redshift of interest
 
   EVOLVE_DENSITY_LINEARLY = 0, evolve the density field with 1st order perturbation theory.
-                If choosing this option, make sure that you resolve small 
+                If choosing this option, make sure that you resolve small
 		enough scales, roughly we find BOX_LEN/DIM should be < 1Mpc
  */
 #define EVOLVE_DENSITY_LINEARLY (int) 0
-
+#define R_smooth_density (float) (0.2)
 
 /*
   If set to 1, the ZA density field is additionally smoothed (asside from the implicit
   boxcar smoothing performed when re-binning the ICs from DIM to HII_DIM) with a Gaussian
   filter of width 0.2*BOX_LEN/HII_DIM.  The implicit boxcar smoothing in perturb_field.c
-  bins the density field on scale DIM/HII_DIM, similar to what Lagrangian codes do 
+  bins the density field on scale DIM/HII_DIM, similar to what Lagrangian codes do
   when constructing Eulerian grids. In other words, the density field, \delta,
   is quantized into (DIM/HII_DIM)^3 values. If your usage requires smooth density fields,
   it is recommended to set SMOOTH_EVOLVED_FIELD to 1.  This also decreases the shot noise
@@ -44,7 +44,7 @@
 #define SMOOTH_EVOLVED_DENSITY_FIELD (int) 1
 
 /*
-  HII efficiency factor (c.f FZH04) 
+  HII efficiency factor (c.f FZH04)
    a bubble is said to be ionized if it's collapsed fraction is
    greater than 1/HII_EFF_FACTOR
 */
@@ -53,9 +53,9 @@
 
 
 /*
-  Allows one to set a flag allowing find_HII_bubbles to skip constructing the 
+  Allows one to set a flag allowing find_HII_bubbles to skip constructing the
   ionization field if it is estimated that the mean neutral fraction, <xH>, is
-  within HII_ROUND_ERR of 1. In other words, if <xH> > 1-HII_ROUND_ERR, 
+  within HII_ROUND_ERR of 1. In other words, if <xH> > 1-HII_ROUND_ERR,
   then find_HII_bubbles just prints a homogeneous xHI field
   of  1's.
 
@@ -91,7 +91,7 @@
   0 = Use the mean collapse fraction (eq. 2 in Barkana & Loeb 2008) to construct ...
 
   Note: option (1) is more accurate as the halo field captures the Poisson and clustering signature
-  which dominates the collapse fraction field on small scales (i.e. where the mean halo number 
+  which dominates the collapse fraction field on small scales (i.e. where the mean halo number
   is small).  However, option (0) is faster as it bypasses the halo finder, and it becomes
   increasingly accurate as the typical bubble size increases.
 */
@@ -117,12 +117,12 @@
   Parameter choice of whether to use velocity corrections in 21-cm fields
   1=use velocities in delta_T; 0=do not use velocities
 
-  NOTE: The approximation used to include peculiar velocity effects works 
+  NOTE: The approximation used to include peculiar velocity effects works
   only in the linear regime, so be careful using this (see Mesinger+2010)
 */
 #define T_USE_VELOCITIES (int) 1
 
-/*                                                                                                    
+/*
   Maximum velocity gradient along the line of sight in units of the hubble parameter at z.
   This is only used in computing the 21cm fields.
   Note, setting this too high can add spurious 21cm power in the early stages, due to the
@@ -155,7 +155,7 @@
 Factor of the halo's radius, R, so that the effective radius
 is R_eff = R_OVERLAP_FACTOR * R.  Halos whose centers are less than
 R_eff away from another halo are not allowed.
-R_OVERLAP_FACTOR = 1 is fully disjoint 
+R_OVERLAP_FACTOR = 1 is fully disjoint
 R_OVERLAP_FACTOR = 0 means that centers are allowed to luy on the edges of
 neighboring halos
 */

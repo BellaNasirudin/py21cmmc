@@ -4,6 +4,9 @@
 #include "bubble_helper_progs.c"
 #include "filter.c"
 #include "gsl/gsl_sf_erf.h"
+#include "init.c"
+#include "perturb_field.c"
+
 
 
 /******* RETURN STRUCTURES ********************************************************************************************/

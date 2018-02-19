@@ -42,7 +42,7 @@
 float BOX_LEN = 250;
 int DIM = 768;
 int HII_DIM = 126;
-int NUMCORES = 1;
+int NUMCORES = 6;
 float RAM = 14;
 
 

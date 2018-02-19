@@ -117,6 +117,21 @@ setup(
             libraries=['m', 'gsl', 'gslcblas', 'fftw3f_omp', 'fftw3f'],
             include_dirs=['/usr/local/include', 'src/py21cmmc/_21cmfast'],
             extra_compile_args = ['-fopenmp', '-Ofast']
+        ),
+        Extension(
+            'py21cmmc._21cmfast.init',
+            sources=['src/py21cmmc/_21cmfast/init.c'],
+            libraries=['m', 'gsl', 'gslcblas', 'fftw3f_omp', 'fftw3f'],
+            include_dirs=['/usr/local/include', 'src/py21cmmc/_21cmfast'],
+            extra_compile_args = ['-fopenmp', '-Ofast']
+        ),
+        Extension(
+            'py21cmmc._21cmfast.perturb_field',
+            sources=['src/py21cmmc/_21cmfast/perturb_field.c'],
+            libraries=['m', 'gsl', 'gslcblas', 'fftw3f_omp', 'fftw3f'],
+            include_dirs=['/usr/local/include', 'src/py21cmmc/_21cmfast'],
+            extra_compile_args = ['-fopenmp', '-Ofast']
         )
+
     ],
 )

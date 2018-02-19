@@ -5,15 +5,19 @@ import os
 import numpy as np
 import glob
 from ctypes import cdll
-from ctypes import c_float, c_int, c_uint, c_double, Structure
+from ctypes import c_float, c_int, c_uint, c_double, Structure, c_char, c_char_p
 from numpy.ctypeslib import ndpointer
 
 
-__all__ = ['get_box_parameters', "drive_21cmMC", 'c_generatePS', 'c_likelihood_chisquare', 'set_globals']
+__all__ = ['get_box_parameters', "drive_21cmMC", 'c_generatePS', 'c_likelihood_chisquare', 'set_globals',
+           'run_init', 'run_perturb', 'get_globals']
 
 LOCATION = os.path.dirname(os.path.abspath(__file__))
 SharedLibraryLocation = glob.glob("%s/drive_21cmMC_streamlined*.so" % LOCATION)[0]
 lib21CMFAST = cdll.LoadLibrary(SharedLibraryLocation)
+
+# initLibrary = cdll.LoadLibrary(glob.glob("%s/init*.so" % LOCATION)[0])
+# perturbLibrary = cdll.LoadLibrary(glob.glob("%s/perturb_field*.so" % LOCATION)[0])
 
 get_box_parameters = lib21CMFAST.GetBoxParameters
 drive_21cmMC = lib21CMFAST.drive_21CMMC
@@ -22,6 +26,38 @@ c_likelihood_chisquare = lib21CMFAST.likelihood_chi_square
 c_set_globals = lib21CMFAST.set_globals
 get_globals = lib21CMFAST.GetGlobals
 
+_run_init = lib21CMFAST.run_init
+_run_perturb = lib21CMFAST.run_perturb_field
+
+_run_init.restype = c_int
+_run_init.argypes = [c_char_p]
+_run_perturb.restype = c_int
+_run_perturb.argtypes = [c_char_p, c_float]
+
+boxdir = os.path.expanduser(os.path.join("~",".py21cmmc","Boxes"))
+
+
+def run_init(**init_params):
+    if init_params:
+        set_globals(**init_params)
+
+    print('-' * 80)
+    print("\t PERFORMING INIT.C")
+    print('-'*80)
+    _run_init(c_char_p(boxdir.encode("utf-8")))
+    print("-- DONE "+ '-'*72)
+    print()
+
+
+def run_perturb(redshift, **init_params):
+    if init_params:
+        set_globals(**init_params)
+
+    print('-' * 80)
+    print("\t PERFORMING PERTURB_FIELD.C")
+    print("-"*80)
+    _run_perturb(c_char_p(boxdir.encode("utf-8")), redshift)
+    print("-- DONE "+ '-'*72)
 
 # ====== Functions for getting/setting globals =========================================================================
 c_set_globals.argtypes = [
