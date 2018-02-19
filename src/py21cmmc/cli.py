@@ -20,16 +20,20 @@ from ._21cmfast import set_globals
 import yaml
 import numpy as np
 import importlib
+from os.path import join, expanduser
 
 main = click.Group()
 
 @main.command()
-@click.argument("config", type=click.Path(exists=True, dir_okay=False))
+@click.option("--config", type=click.Path(exists=True, dir_okay=False), default=None)
 @click.option("--ps/--no-ps", default=False, help="generate the power spectrum of the box")
 @click.option("--likelihood", default="traditional_c_based", help='the kind of likelihood to use')
 @click.option("--output", type=click.Path(), default=None)
 @click.option("--no-ll/--ll", default=False, help="don't determine the likelihood")
 def single(config, ps, likelihood, output, no_ll):
+    if config is None:
+        config = expanduser(join("~", ".py21cmmc","example_config.yml"))
+
     with open(config,"r") as f:
         cfg = yaml.load(f)
 

@@ -1,5 +1,5 @@
 # Directory in which to find boxes
-boxdir: ~/Documents/Projects/Foregrounds/21CMMC_NoFileIO/21CMMC_NoFileIO_Source/Boxes
+boxdir: ~/.py21cmmc/Boxes
 
 # Choose appropriate redshifts to calculate (a list)
 redshifts: [9.]

@@ -12,17 +12,36 @@ from os.path import dirname
 from os.path import join
 from os.path import relpath
 from os.path import splitext
+from os.path import expanduser
 
 from setuptools import Extension
 from setuptools import find_packages
 from setuptools import setup
 
+from shutil import copyfile, move
 
 def read(*names, **kwargs):
     return io.open(
         join(dirname(__file__), *names),
         encoding=kwargs.get('encoding', 'utf8')
     ).read()
+
+# ======================================================================================================================
+# Create a user-level config directory for py21cmmc, just so we can have reasonable default storage areas.
+try:
+    pkgdir = expanduser(join("~", ".py21cmmc"))
+    os.mkdir(pkgdir)
+    os.mkdir(join(pkgdir, "Boxes"))
+except:
+    pass
+
+try:
+    move(join(pkgdir, "example_config.yml"), join(pkgdir, "example_config.yml.bk"))
+except:
+    pass
+
+copyfile("example_config.yml", join(pkgdir, "example_config.yml"))
+# ======================================================================================================================
 
 
 # Enable code coverage for C code: we can't use CFLAGS=-coverage in tox.ini, since that may mess with compiling
