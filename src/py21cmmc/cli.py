@@ -16,6 +16,7 @@ Why does this file exist, and why not put this in __main__?
 """
 import click
 from ._utils import get_single_box
+from ._21cmfast import set_globals
 import yaml
 import numpy as np
 import importlib
@@ -34,18 +35,19 @@ def single(config, ps, likelihood, output, no_ll):
 
     outputs = get_single_box(cfg['boxdir'], cfg['redshifts'], cfg['zeta_val'],
                              cfg['MFP_val'], np.log10(cfg['TVir_val']),
+                             init_params=cfg['21cmfast_init'],
                              generate_ps=ps)
 
     if ps:
-        delta_T, properties, PS = outputs
+        delta_T, properties, PS, box_params = outputs
     else:
-        delta_T, properties = outputs
+        delta_T, properties, box_params = outputs
 
     if not no_ll:
         # Import the correct function
         module = importlib.import_module("py21cmmc.likelihoods.%s"%likelihood)
 
-        ll = module.get_likelihood(delta_T, None, properties, cfg['redshifts'],
+        ll = module.get_likelihood(delta_T, box_params, properties, cfg['redshifts'],
                                    **cfg['likelihood_kwargs']
                                    )
 

@@ -93,6 +93,11 @@ will be several deltaT boxes, one for each redshift).
 TODO (Before Release)
 =====================
 - Work out how to change global variables from Python, if possible (otherwise, its hard to re-compile when its installed).
+    - This can be done by changing the ``#define VAR (type) val;`` in the appropriate .H file to be ``type VAR=val;``,
+      which means it can be changed globally). I have done this for obvious variables like HII_DIM and BOX_LEN in INIT_PARAMS.H,
+      which can now be changed. We can add whatever variables we want to this list. *But* we should remember that variables
+      that need to be modified in MCMC will need to be more local than that, because each chain shares the object, so one
+      of them updating a global var will screw the rest up.
 - Add all the MCMC stuff.
 - Change to newer version of 21CMFAST
 - Add ./init and ./perturb_field (at least) so the whole process can be done without installing anything else.

@@ -1,8 +1,23 @@
-# DIRECTORIES
+# Directory in which to find boxes
 boxdir: ~/Documents/Projects/Foregrounds/21CMMC_NoFileIO/21CMMC_NoFileIO_Source/Boxes
 
-# Choose appropriate redshifts to calculate
+# Choose appropriate redshifts to calculate (a list)
 redshifts: [9.]
+
+# Specify parameters that 21cmFAST uses. These are broken up into those found in INIT, ANAL, COSMOLOGY
+# and HEAT respectively. This needs to be expanded sufficiently, but at this point is proof-of-principle.
+21cmfast_init: {
+    HII_DIM: 128
+}
+
+21cmfast_anal: {
+}
+
+21cmfast_cosmo: {
+}
+
+21cmfast_heat: {
+}
 
 
 # Fiducial model parameters.
@@ -11,12 +26,9 @@ MFP_val: 15.0
 TVir_val: 30000.0
 
 
-# k-space cut to be made to the likelihood fitting corresponding to the removal of foregrounds
-# Including a modelling uncertainty. This accounts for differences between semi-numerical and N-body/Hydro/RT
-# prescriptions for EoR simulations. Setting to 0.0 will remove the uncertainty. 0.10 corresponds to 10 per cent
-# modelling uncertainty
-
 # The likelihood kwargs are specific to a certain kind of likelihood, which can be pluggable.
+# The following defaults correspond to the `traditional_c_based' likelihood.
+# Only required/used if generating a likelihood or doing MCMC.
 likelihood_kwargs: {
     telescope_name: HERA331,
     foreground_cut: 0.15,
@@ -27,6 +39,7 @@ likelihood_kwargs: {
     tvir: 30000.0,
     noisedir: ~/Documents/Projects/Foregrounds/21CMMC_NoFileIO/21CMMC_NoFileIO_Source/Programs/NoiseData
 }
+
 
 # Set ranges for the parameters (only apply to MCMC).
 # zeta_range: [5., 100.]

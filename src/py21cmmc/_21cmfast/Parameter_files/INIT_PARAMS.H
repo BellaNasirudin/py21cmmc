@@ -31,13 +31,21 @@
 /******** BEGIN USER CHANGABLE DEFINITIONS   **********/
 #define RANDOM_SEED (long) (1000)
 
-#define BOX_LEN (float) 250 // in Mpc
-#define DIM (int) 768 // number of cells for the high-res box (sampling ICs) along a principal axis
-#define HII_DIM (int) 128 // number of cells for the low-res box; recommended to be an integer multiple of DIM
+//#define BOX_LEN (float) 250 // in Mpc
+//#define DIM (int) 768 // number of cells for the high-res box (sampling ICs) along a principal axis
+//#define HII_DIM (int) 128 // number of cells for the low-res box; recommended to be an integer multiple of DIM
+//
+///****** New in v1.1. ****** Threading parameters  ***/
+//#define NUMCORES (int) 1 // # of cores you wish to allocate (shared mem)
+//#define RAM (float) 14 // physical memory in GB available
 
-/****** New in v1.1. ****** Threading parameters  ***/
-#define NUMCORES (int) 1 // # of cores you wish to allocate (shared mem)
-#define RAM (float) 14 // physical memory in GB available
+float BOX_LEN = 250;
+int DIM = 768;
+int HII_DIM = 126;
+int NUMCORES = 1;
+float RAM = 14;
+
+
 /******** END USER CHANGABLE DEFINITIONS   **********/
 
 #include "ANAL_PARAMS.H"

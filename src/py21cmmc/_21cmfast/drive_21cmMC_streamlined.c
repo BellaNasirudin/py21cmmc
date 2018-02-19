@@ -29,6 +29,24 @@ struct BoxParameters GetBoxParameters() {
     return result;
 }
 
+struct Globals{
+    float box_len;
+    int dim;
+    int hii_dim;
+    int numcores;
+    float ram;
+};
+
+struct Globals GetGlobals(){
+    struct Globals result;
+    result.box_len = BOX_LEN;
+    result.dim = DIM;
+    result.hii_dim = HII_DIM;
+    result.numcores = NUMCORES;
+    result.ram = RAM;
+
+    return result;
+}
 
 struct PowerSpectrumResult{
     double *k_box, *p_box;
@@ -39,6 +57,13 @@ struct PowerSpectrumResult{
 
 /**********************************************************************************************************************/
 
+void set_globals(float box_len, int dim, int hii_dim, int numcores, float ram){
+    BOX_LEN = box_len;
+    DIM = dim;
+    HII_DIM = hii_dim;
+    NUMCORES = numcores;
+    RAM = ram;
+}
 
 /******* MAIN ROUTINES ************************************************************************************************/
 struct DriveResult drive_21CMMC(fftwf_complex *deltax_unfiltered, float *v, float REDSHIFT, float ION_EFF_FACTOR,

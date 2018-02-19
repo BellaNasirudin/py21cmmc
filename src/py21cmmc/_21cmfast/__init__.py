@@ -9,7 +9,7 @@ from ctypes import c_float, c_int, c_uint, c_double, Structure
 from numpy.ctypeslib import ndpointer
 
 
-__all__ = ['get_box_parameters', "drive_21cmMC", 'c_generatePS', 'c_likelihood_chisquare']
+__all__ = ['get_box_parameters', "drive_21cmMC", 'c_generatePS', 'c_likelihood_chisquare', 'set_globals']
 
 LOCATION = os.path.dirname(os.path.abspath(__file__))
 SharedLibraryLocation = glob.glob("%s/drive_21cmMC_streamlined*.so" % LOCATION)[0]
@@ -19,7 +19,48 @@ get_box_parameters = lib21CMFAST.GetBoxParameters
 drive_21cmMC = lib21CMFAST.drive_21CMMC
 c_generatePS = lib21CMFAST.generatePS
 c_likelihood_chisquare = lib21CMFAST.likelihood_chi_square
+c_set_globals = lib21CMFAST.set_globals
+get_globals = lib21CMFAST.GetGlobals
 
+
+# ====== Functions for getting/setting globals =========================================================================
+c_set_globals.argtypes = [
+    c_float, # BOX_LEN
+    c_int,   # DIM
+    c_int,   # HII_DIM
+    c_int,   # NUM_CORES
+    c_float, # RAM
+]
+
+
+class InitGlobals(Structure):
+    _fields_ = [
+        ('BOX_LEN', c_float),
+        ("DIM", c_int),
+        ("HII_DIM", c_int),
+        ("NUMCORES", c_int),
+        ("RAM", c_float)
+    ]
+
+
+get_globals.restype = InitGlobals
+
+
+def set_globals(**kwargs):
+    globs = get_globals()
+    args = []
+    for fld in InitGlobals._fields_:
+        name = fld[0]
+        if name in kwargs:
+            args.append(kwargs.pop(name))
+        else:
+            args.append(getattr(globs,name))
+
+    if len(kwargs)>0:
+        print("WARNING: Some of the parameters passed are incorrect: %s. Possible arguments are %s"%(kwargs, [x[0] for x in Globals._fields_]))
+
+    c_set_globals(*args)
+# ======================================================================================================================
 
 # ======= get_box_parameters wrapper ===================================================================================
 class BoxParameters(Structure):
