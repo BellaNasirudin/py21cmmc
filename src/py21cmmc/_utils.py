@@ -16,7 +16,7 @@ def _read_perturbed(boxdir, redshifts, HII_DIM, BOX_LEN, VelocityComponent):
 
     for i, redshift in enumerate(redshifts):
 
-        with open(updated_smoothed(boxdir, redshift, HII_DIM, BOX_LEN), 'rb') as f:
+        with open(fn_updated_smoothed(boxdir, redshift, HII_DIM, BOX_LEN), 'rb') as f:
             IndividualBox = np.fromfile(f, dtype=np.dtype('complex64'), count=HII_DIM * HII_DIM * HII_DIM//2)
 
         for ii in tqdm(range(HII_DIM), desc="Padding Densities "):
@@ -28,7 +28,7 @@ def _read_perturbed(boxdir, redshifts, HII_DIM, BOX_LEN, VelocityComponent):
                                                                                               kk  + (HII_DIM//2) * (
                                                                                                           jj + HII_DIM *
                                                                                                       ii)]
-        with open(updated_vel(boxdir, redshift, HII_DIM, BOX_LEN, VelocityComponent), 'rb') as f:
+        with open(fn_updated_vel(boxdir, redshift, HII_DIM, BOX_LEN, VelocityComponent), 'rb') as f:
             IndividualBox = np.fromfile(f, dtype=np.dtype('float32'), count=HII_DIM * HII_DIM * HII_DIM)
 
         for ii in tqdm(range(HII_DIM),desc="Padding Velocities"):
@@ -40,13 +40,15 @@ def _read_perturbed(boxdir, redshifts, HII_DIM, BOX_LEN, VelocityComponent):
     return DensityBoxes, Velocity_Boxes
 
 
-def updated_smoothed(boxdir, redshift, HII_DIM, BOX_LEN):
+def fn_updated_smoothed(boxdir, redshift, HII_DIM, BOX_LEN):
     return pth.expanduser(pth.join(boxdir,'updated_smoothed_deltax_z%06.2f_%i_%.0fMpc'% (redshift, HII_DIM, BOX_LEN)))
 
 
-def updated_vel(boxdir, redshift, HII_DIM, BOX_LEN, VelocityComponent):
+def fn_updated_vel(boxdir, redshift, HII_DIM, BOX_LEN, VelocityComponent):
     return pth.expanduser(pth.join(boxdir,'updated_v%s_z%06.2f_%i_%.0fMpc'% ('xyz'[VelocityComponent-1], redshift, HII_DIM, BOX_LEN)))
 
+def fn_deltak(boxdir, DIM, BOX_LEN):
+    return pth.expanduser(pth.join(boxdir,"deltak_z0.00_%i_%.0fMpc"%(DIM,BOX_LEN)))
 
 def get_single_box(boxdir, redshifts, zeta, mfp, log10_tvir, init_params=None, generate_ps=False):
     # First, set the INIT global parameters.
@@ -57,12 +59,13 @@ def get_single_box(boxdir, redshifts, zeta, mfp, log10_tvir, init_params=None, g
 
     box_params = get_box_parameters()
 
-    for i,z in enumerate(redshifts):
-        if not pth.exists(updated_smoothed(boxdir, z, box_params.N, box_params.box_len)) or not\
-            pth.exists(updated_vel(boxdir, z, box_params.N, box_params.box_len, box_params.vel_comp)):
+    if not pth.exists(fn_deltak(boxdir, boxglobs.DIM, boxglobs.BOX_LEN)):
+        run_init() # No need to pass init params, since we have done that already.
 
-            if i==0:
-                run_init()    # No need to pass init params, since we have done that already.
+    for i,z in enumerate(redshifts):
+        if not pth.exists(fn_updated_smoothed(boxdir, z, box_params.N, box_params.box_len)) or not\
+            pth.exists(fn_updated_vel(boxdir, z, box_params.N, box_params.box_len, box_params.vel_comp)):
+
             run_perturb(z)
 
     DensityBoxes, Velocity_Boxes = _read_perturbed(boxdir, redshifts, box_params.N, box_params.box_len, box_params.vel_comp)
