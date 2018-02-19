@@ -51,6 +51,31 @@ def fn_updated_vel(boxdir, redshift, HII_DIM, BOX_LEN, VelocityComponent):
 def fn_deltak(boxdir, DIM, BOX_LEN):
     return pth.expanduser(pth.join(boxdir,"deltak_z0.00_%i_%.0fMpc"%(DIM,BOX_LEN)))
 
+def check_init_existence(boxdir):
+    boxglobs = get_globals()
+    return pth.exists(fn_deltak(boxdir, boxglobs.DIM, boxglobs.BOX_LEN))
+
+def check_perturb_existence(boxdir, z):
+    box_params = get_box_parameters()
+    return (pth.exists(fn_updated_smoothed(boxdir, z, box_params.N, box_params.box_len)) and
+            pth.exists(fn_updated_vel(boxdir, z, box_params.N, box_params.box_len, box_params.vel_comp)))
+
+def run_perturb(boxdir, redshifts,init_params):
+    if init_params:
+        set_globals(**init_params)
+
+    boxglobs = get_globals()
+
+    box_params = get_box_parameters()
+
+    if not check_init_existence(boxdir):
+        run_init()  # No need to pass init params, since we have done that already.
+
+    for i, z in enumerate(redshifts):
+        if not check_perturb_existence(boxdir, z):
+            run_perturb(z)
+
+
 
 def get_single_box(boxdir, redshifts, zeta, mfp, log10_tvir, init_params=None, generate_ps=False):
     # First, set the INIT global parameters.

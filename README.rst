@@ -94,7 +94,14 @@ on-the-fly. So basically, this does everything you need. You can run::
 
     $ py21cmmc single --help
 
-to see some options. Otherwise, just modify the config file found in the directory as stated above.
+to see some options. Otherwise, just modify the config file found in the directory as stated above. You can alternatively
+just run::
+
+    $ py21cmmc init
+    $ py21cmmc perturb_field
+
+which will run basically the same things as ``./init`` and ``./perturb_field`` respectively, except that the latter
+doesn't need the redshift specification, since this is done in the config file.
 
 TODO (Before Release)
 =====================
