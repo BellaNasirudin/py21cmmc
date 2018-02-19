@@ -83,12 +83,18 @@ Either use the functions from ``py21cmmc._utils``, or use the provided CLI::
 
     $ py21cmmc --help
 
-At this point, the basic workflow is to first run ``./init`` and ``./perturb_field`` using a separate working ``21cmFAST``
-installation. Do all the redshifts that are required (with ``./perturb_field``). Then you need to create a config file -- an
-example is given in this repo as ``example_config.yml``. Make sure all the settings in that file are as you want them
-(especially the directories containing the boxes you just made). Then use the CLI as written above, with the config
-file as an argument. If the ``output`` option is specified, the full deltaT box will be written to that file (in fact, it
-will be several deltaT boxes, one for each redshift).
+At this point, upon installation, the code creates a ``.py21cmmc`` directory in the user's home. In there is the default
+config file (you can copy it anywhere and change it if you wish), and a ``Boxes/`` directory which will be where the code
+looks for the boxes it needs. All functionality of the code so far can be achieved by running::
+
+    $ py21cmmc single
+
+If matching boxes from ``init.c`` and ``perturb_field.c`` are found it will use them, otherwise it will run them
+on-the-fly. So basically, this does everything you need. You can run::
+
+    $ py21cmmc single --help
+
+to see some options. Otherwise, just modify the config file found in the directory as stated above.
 
 TODO (Before Release)
 =====================
@@ -101,6 +107,7 @@ TODO (Before Release)
 - Add all the MCMC stuff.
 - Change to newer version of 21CMFAST
 - Add ./init and ./perturb_field (at least) so the whole process can be done without installing anything else.
+    - Done (at a basic level).
 - Figure out how to use git submodules to do that^.
 - Documentation
 - Tests
