@@ -1,51 +1,31 @@
-#include "Parameter_files/INIT_PARAMS.H"
-#include "Parameter_files/ANAL_PARAMS.H"
+#ifndef _BUBBLE_HELPERS_
+#define _BUBBLE_HELPERS_
 
+#include "../Parameter_files/INIT_PARAMS.H"
+#include "../Parameter_files/ANAL_PARAMS.H"
 
 void HII_filter(fftwf_complex *box, int filter_type, float R){
-  int n_x, n_z, n_y;
-  float k_x, k_y, k_z, k_mag, k_mag_x, k_mag_y,kR;
-
-#pragma omp parallel shared(box, filter_type, R) private(k_x, k_y, k_z, k_mag, k_mag_x, k_mag_y, kR, n_x, n_z, n_y)
-{
-
-  // loop through k-box
-#pragma omp for
-    for (n_x=0; n_x<HII_DIM; n_x++){
-        if (n_x>HII_MIDDLE) {
-//            k_x =(n_x-HII_DIM) * DELTA_K;
-            k_mag_x = (n_x-HII_DIM)*(n_x-HII_DIM);
-        }
-        else {
-//            k_x = n_x * DELTA_K;
-            k_mag_x = n_x*n_x;
-        }
-
-//        k_mag_x = k_x*k_x;
-
-        for (n_y=0; n_y<HII_DIM; n_y++){
-            if (n_y>HII_MIDDLE) {
-//                k_y =(n_y-HII_DIM) * DELTA_K;
-                k_mag_y = (n_y-HII_DIM)*(n_y-HII_DIM);
-            }
-            else {
-//                k_y = n_y * DELTA_K;
-                k_mag_y = n_y*n_y;
-            }
-
-//            k_mag_y = k_y*k_y;
-
-            for (n_z=0; n_z<=HII_MIDDLE; n_z++){
-//                k_z = n_z * DELTA_K;
-
-//                k_mag = sqrt(k_mag_x + k_mag_y + k_z*k_z);
-                k_mag = sqrt(k_mag_x + k_mag_y + n_z*n_z)*DELTA_K;
-
+    int n_x, n_z, n_y;
+    float k_x, k_y, k_z, k_mag, kR;
+ 
+    // loop through k-box
+    for (n_x=HII_DIM; n_x--;){
+        if (n_x>HII_MIDDLE) {k_x =(n_x-HII_DIM) * DELTA_K;}
+        else {k_x = n_x * DELTA_K;}
+        
+        for (n_y=HII_DIM; n_y--;){
+            if (n_y>HII_MIDDLE) {k_y =(n_y-HII_DIM) * DELTA_K;}
+            else {k_y = n_y * DELTA_K;}
+            
+            for (n_z=(HII_MIDDLE+1); n_z--;){
+                k_z = n_z * DELTA_K;
+                
+                k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
+                
                 kR = k_mag*R; // real space top-hat
                 if (filter_type == 0){ // real space top-hat
                     if (kR > 1e-4){
-//                        box[HII_C_INDEX(n_x, n_y, n_z)] *= 3.0 * (sin(kR)/pow(kR, 3) - cos(kR)/pow(kR, 2));
-                        box[HII_C_INDEX(n_x, n_y, n_z)] *= 3.0 * (sin(kR)/(kR*kR*kR) - cos(kR)/(kR*kR));
+                        box[HII_C_INDEX(n_x, n_y, n_z)] *= 3.0*pow(kR, -3) * (sin(kR) - cos(kR)*kR);
                     }
                 }
                 else if (filter_type == 1){ // k-space top hat
@@ -66,8 +46,7 @@ void HII_filter(fftwf_complex *box, int filter_type, float R){
         }
     } // end looping through k box
 
-}
- return;
+    return;
 }
 
 
@@ -75,7 +54,7 @@ void HII_filter(fftwf_complex *box, int filter_type, float R){
   all lengths are in units of the box size
   (x,y,z) is the closest reflection of (x2,y2,z2) to (x1, y1, z1)
 */
-float distance_coord(float x1, float y1, float z1,
+float distance_coord(float x1, float y1, float z1, 
 		     float x2, float y2, float z2,
 		     float *x, float *y, float *z
 		     ){
@@ -338,45 +317,45 @@ void check_region(float * box, int dimensions, float Rsq_curr_index, int x, int 
 	  xminsq = pow(x-x_index-dimensions, 2);
 	  yminsq = pow(y-y_index-dimensions, 2);
 	  zminsq = pow(z-z_index-dimensions, 2);
-	  if ( (Rsq_curr_index > (xsq + ysq + zsq)) ||
-	       (Rsq_curr_index > (xsq + ysq + zplussq)) ||
-	       (Rsq_curr_index > (xsq + ysq + zminsq)) ||
+	  if ( (Rsq_curr_index > (xsq + ysq + zsq)) || 
+	       (Rsq_curr_index > (xsq + ysq + zplussq)) || 
+	       (Rsq_curr_index > (xsq + ysq + zminsq)) || 
 
-	       (Rsq_curr_index > (xsq + yplussq + zsq)) ||
-	       (Rsq_curr_index > (xsq + yplussq + zplussq)) ||
-	       (Rsq_curr_index > (xsq + yplussq + zminsq)) ||
+	       (Rsq_curr_index > (xsq + yplussq + zsq)) || 
+	       (Rsq_curr_index > (xsq + yplussq + zplussq)) || 
+	       (Rsq_curr_index > (xsq + yplussq + zminsq)) || 
 
-	       (Rsq_curr_index > (xsq + yminsq + zsq)) ||
-	       (Rsq_curr_index > (xsq + yminsq + zplussq)) ||
-	       (Rsq_curr_index > (xsq + yminsq + zminsq)) ||
-
-
-	       (Rsq_curr_index > (xplussq + ysq + zsq)) ||
-	       (Rsq_curr_index > (xplussq + ysq + zplussq)) ||
-	       (Rsq_curr_index > (xplussq + ysq + zminsq)) ||
-
-	       (Rsq_curr_index > (xplussq + yplussq + zsq)) ||
-	       (Rsq_curr_index > (xplussq + yplussq + zplussq)) ||
-	       (Rsq_curr_index > (xplussq + yplussq + zminsq)) ||
-
-	       (Rsq_curr_index > (xplussq + yminsq + zsq)) ||
-	       (Rsq_curr_index > (xplussq + yminsq + zplussq)) ||
-	       (Rsq_curr_index > (xplussq + yminsq + zminsq)) ||
+	       (Rsq_curr_index > (xsq + yminsq + zsq)) || 
+	       (Rsq_curr_index > (xsq + yminsq + zplussq)) || 
+	       (Rsq_curr_index > (xsq + yminsq + zminsq)) || 
 
 
-	       (Rsq_curr_index > (xminsq + ysq + zsq)) ||
-	       (Rsq_curr_index > (xminsq + ysq + zplussq)) ||
-	       (Rsq_curr_index > (xminsq + ysq + zminsq)) ||
+	       (Rsq_curr_index > (xplussq + ysq + zsq)) || 
+	       (Rsq_curr_index > (xplussq + ysq + zplussq)) || 
+	       (Rsq_curr_index > (xplussq + ysq + zminsq)) || 
 
-	       (Rsq_curr_index > (xminsq + yplussq + zsq)) ||
-	       (Rsq_curr_index > (xminsq + yplussq + zplussq)) ||
-	       (Rsq_curr_index > (xminsq + yplussq + zminsq)) ||
+	       (Rsq_curr_index > (xplussq + yplussq + zsq)) || 
+	       (Rsq_curr_index > (xplussq + yplussq + zplussq)) || 
+	       (Rsq_curr_index > (xplussq + yplussq + zminsq)) || 
 
-	       (Rsq_curr_index > (xminsq + yminsq + zsq)) ||
-	       (Rsq_curr_index > (xminsq + yminsq + zplussq)) ||
+	       (Rsq_curr_index > (xplussq + yminsq + zsq)) || 
+	       (Rsq_curr_index > (xplussq + yminsq + zplussq)) || 
+	       (Rsq_curr_index > (xplussq + yminsq + zminsq)) || 
+
+
+	       (Rsq_curr_index > (xminsq + ysq + zsq)) || 
+	       (Rsq_curr_index > (xminsq + ysq + zplussq)) || 
+	       (Rsq_curr_index > (xminsq + ysq + zminsq)) || 
+
+	       (Rsq_curr_index > (xminsq + yplussq + zsq)) || 
+	       (Rsq_curr_index > (xminsq + yplussq + zplussq)) || 
+	       (Rsq_curr_index > (xminsq + yplussq + zminsq)) || 
+
+	       (Rsq_curr_index > (xminsq + yminsq + zsq)) || 
+	       (Rsq_curr_index > (xminsq + yminsq + zplussq)) || 
 	       (Rsq_curr_index > (xminsq + yminsq + zminsq))
 	     ){
-
+	    
 	    // we are within the sphere defined by R, so change flag in box array
 	    	    box[HII_R_INDEX(x_index, y_index, z_index)] = 0;
 	    //	    box[HII_R_INDEX(x_index, y_index, z_index)] = 15;
@@ -454,7 +433,7 @@ void update_in_sphere(float * box, int dimensions, float R, float xf, float yf, 
   zb_max = z+R_index;
 
   //    check_region(box, dimensions, Rsq_curr_index, x,y,z, xb_min, xb_max, yb_min, yb_max, zb_min, zb_max);
-
+  
   check_region(box, dimensions, Rsq_curr_index, x,y,z, xb_min, xl_min, yb_min, yb_max, zb_min, zb_max);
   check_region(box, dimensions, Rsq_curr_index, x,y,z, xl_max, xb_max, yb_min, yb_max, zb_min, zb_max);
 
@@ -464,3 +443,6 @@ void update_in_sphere(float * box, int dimensions, float R, float xf, float yf, 
   check_region(box, dimensions, Rsq_curr_index, x,y,z, xb_min, xb_max, yb_min, yb_max, zb_min, zl_min);
   check_region(box, dimensions, Rsq_curr_index, x,y,z, xb_min, xb_max, yb_min, yb_max, zl_max, zb_max);
 }
+
+
+#endif

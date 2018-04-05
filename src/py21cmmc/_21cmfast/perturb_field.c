@@ -1,6 +1,9 @@
-#include "Parameter_files/INIT_PARAMS.H"
-#include "Parameter_files/ANAL_PARAMS.H"
-//#include "bubble_helper_progs.c"
+#include "../Parameter_files/INIT_PARAMS.H"
+#include "../Parameter_files/ANAL_PARAMS.H"
+#include "../Parameter_files/Variables.h"
+#include "bubble_helper_progs.c"
+
+#define TOTAL_COSMOLOGY_FILEPARAMS (int)7
 
 /*
   USAGE: perturb_field <REDSHIFT>
@@ -15,12 +18,12 @@
 
   Output files:
 
-  "%s/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc", boxdir, REDSHIFT, HII_DIM, BOX_LEN
+  "../Boxes/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc", REDSHIFT, HII_DIM, BOX_LEN
   -- This file contains the perturbed overdensity field, \delta, at <REDSHIFT>. The binary box has FFT padding
 
-  "%s/updated_vx_z%06.2f_%i_%.0fMpc", boxdir, REDSHIFT, HII_DIM, BOX_LEN
-  "%s/updated_vy_z%06.2f_%i_%.0fMpc", boxdir, REDSHIFT, HII_DIM, BOX_LEN
-  "%s/updated_vz_z%06.2f_%i_%.0fMpc", boxdir, REDSHIFT, HII_DIM, BOX_LEN
+  "../Boxes/updated_vx_z%06.2f_%i_%.0fMpc", REDSHIFT, HII_DIM, BOX_LEN
+  "../Boxes/updated_vy_z%06.2f_%i_%.0fMpc", REDSHIFT, HII_DIM, BOX_LEN
+  "../Boxes/updated_vz_z%06.2f_%i_%.0fMpc", REDSHIFT, HII_DIM, BOX_LEN
   -- These files contain the velocity fields recalculated using the perturbed velocity fields at <REDSHIFT>.  The units are cMpc/s.  The boxes have FFT padding.
 */
 
@@ -45,8 +48,17 @@ int print_box_no_padding(float *box, int d, FILE *F){
   return 0;
 }
 
+struct ReturnData{
+    float *RedshiftData;
+    float *NeutralFractionData;
+    float *BrightnessTempData;
+    float *PSData_k;
+    float *PSData;
+    float *LCBox;
+};
 
-int process_velocity(fftwf_complex *updated, float dDdt_over_D, float REDSHIFT, int component, char *boxdir){
+
+int process_velocity(fftwf_complex *updated, float dDdt_over_D, float REDSHIFT, int component){
   char filename[300];
   FILE *F;
   float k_x, k_y, k_z, k_sq;
@@ -90,11 +102,11 @@ int process_velocity(fftwf_complex *updated, float dDdt_over_D, float REDSHIFT, 
   fftwf_destroy_plan(plan);
   fftwf_cleanup();
   if (component == 0)
-    sprintf(filename, "%s/updated_vx_z%06.2f_%i_%.0fMpc", boxdir, REDSHIFT, HII_DIM, BOX_LEN);
+    sprintf(filename, "../Boxes/updated_vx_z%06.2f_%i_%.0fMpc", REDSHIFT, HII_DIM, BOX_LEN);
   else if (component == 1)
-    sprintf(filename, "%s/updated_vy_z%06.2f_%i_%.0fMpc", boxdir, REDSHIFT, HII_DIM, BOX_LEN);
+    sprintf(filename, "../Boxes/updated_vy_z%06.2f_%i_%.0fMpc", REDSHIFT, HII_DIM, BOX_LEN);
   else
-    sprintf(filename, "%s/updated_vz_z%06.2f_%i_%.0fMpc", boxdir, REDSHIFT, HII_DIM, BOX_LEN);
+    sprintf(filename, "../Boxes/updated_vz_z%06.2f_%i_%.0fMpc", REDSHIFT, HII_DIM, BOX_LEN);
   if (!(F=fopen(filename, "wb"))){
     fprintf(stderr, "Unable to open file %s to write to.\n", filename);
     return -1;
@@ -105,15 +117,16 @@ int process_velocity(fftwf_complex *updated, float dDdt_over_D, float REDSHIFT, 
     return -1;
   }
   fclose(F);
+    
   return 0;
 }
 
-int run_perturb_field (char *boxdir, float REDSHIFT){
+int main (int argc, char ** argv){
   char filename[100];
   FILE *F;
   fftwf_complex *updated, *save_updated;
   fftwf_plan plan;
-  float *vx, *vy, *vz, growth_factor, displacement_factor_2LPT, init_growth_factor, init_displacement_factor_2LPT, xf, yf, zf, *vx_2LPT, *vy_2LPT, *vz_2LPT;
+  float *vx, *vy, *vz, REDSHIFT, growth_factor, displacement_factor_2LPT, init_growth_factor, init_displacement_factor_2LPT, xf, yf, zf, *vx_2LPT, *vy_2LPT, *vz_2LPT;
   float *deltax, mass_factor, dDdt, f_pixel_factor;
   unsigned long long ct, HII_i, HII_j, HII_k;
   int i,j,k, xi, yi, zi;
@@ -121,11 +134,36 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
   /***************   BEGIN INITIALIZATION   **************************/
 
   // check usage
-//  if (argc != 2){
-//    fprintf(stderr, "USAGE: perturb_field <REDSHIFT>\nAborting...\n");
-//    return -1;
-//  }
-//  REDSHIFT = atof(argv[1]);
+  if (argc != 4){
+    fprintf(stderr, "USAGE: perturb_field <REDSHIFT>\nAborting...\n");
+    return -1;
+  }
+  REDSHIFT = atof(argv[1]);
+    
+    char dummy_string[500];
+    
+    INDIVIDUAL_ID = atof(argv[2]);
+    INDIVIDUAL_ID_2 = atof(argv[3]);
+    
+    double *PARAM_COSMOLOGY_VALS = calloc(TOTAL_COSMOLOGY_FILEPARAMS,sizeof(double));
+    
+    sprintf(filename,"WalkerCosmology_%1.6lf_%1.6lf.txt",INDIVIDUAL_ID,INDIVIDUAL_ID_2);
+    F = fopen(filename,"rt");
+    
+    for(i=0;i<TOTAL_COSMOLOGY_FILEPARAMS;i++) {
+        fscanf(F,"%s\t%lf\n",&dummy_string,&PARAM_COSMOLOGY_VALS[i]);
+    }
+    fclose(F);
+    
+    RANDOM_SEED = (int)PARAM_COSMOLOGY_VALS[0];
+    SIGMA8 = (float)PARAM_COSMOLOGY_VALS[1];
+    hlittle = (float)PARAM_COSMOLOGY_VALS[2];
+    OMm = (float)PARAM_COSMOLOGY_VALS[3];
+    OMl = (float)PARAM_COSMOLOGY_VALS[4];
+    OMb = (float)PARAM_COSMOLOGY_VALS[5];
+    POWER_INDEX = (float)PARAM_COSMOLOGY_VALS[6];
+    
+    
   // initialize and allocate thread info
   if (fftwf_init_threads()==0){
     fprintf(stderr, "perturb_field: ERROR: problem initializing fftwf threads\nAborting\n.");
@@ -163,10 +201,10 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
     fprintf(stderr, "perturb_field: Error allocating memory for velocity box\nAborting...\n");
     free_ps(); return -1;
   }
-
+    
   // check if the linear evolution flag was set
   if (EVOLVE_DENSITY_LINEARLY){
-    sprintf(filename, "%s/smoothed_deltax_z0.00_%i_%.0fMpc", boxdir, HII_DIM, BOX_LEN);
+    sprintf(filename, "../Boxes/smoothed_deltax_z0.00_%i_%.0fMpc", HII_DIM, BOX_LEN);
     if (!(F=fopen(filename, "rb"))){
       fprintf(stderr, "perturb_field.c: Unable to open file %s for reading.\nAborting\n", filename);
       fftwf_free(updated); fftwf_free(vx);
@@ -205,7 +243,7 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
       fftwf_free(vx); fftwf_free(vy); fftwf_free(updated);
       free_ps(); return -1;
     }
-    sprintf(filename, "%s/vxoverddot_%i_%.0fMpc", boxdir, HII_DIM, BOX_LEN);
+    sprintf(filename, "../Boxes/vxoverddot_%i_%.0fMpc", HII_DIM, BOX_LEN);
     F=fopen(filename, "rb");
     if (mod_fread(vx, sizeof(float)*HII_TOT_NUM_PIXELS, 1, F)!=1){
       fprintf(stderr, "perturb_field: Read error occured while reading velocity box.\n");
@@ -213,7 +251,7 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
       free_ps(); return -1;
     }
     fclose(F);
-    sprintf(filename, "%s/vyoverddot_%i_%.0fMpc", boxdir, HII_DIM, BOX_LEN);
+    sprintf(filename, "../Boxes/vyoverddot_%i_%.0fMpc", HII_DIM, BOX_LEN);
     F=fopen(filename, "rb");
     if (mod_fread(vy, sizeof(float)*HII_TOT_NUM_PIXELS, 1, F)!=1){
       fprintf(stderr, "perturb_field: Read error occured while reading velocity box.\n");
@@ -221,7 +259,7 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
       free_ps(); return -1;
     }
     fclose(F);
-    sprintf(filename, "%s/vzoverddot_%i_%.0fMpc",boxdir, HII_DIM, BOX_LEN);
+    sprintf(filename, "../Boxes/vzoverddot_%i_%.0fMpc", HII_DIM, BOX_LEN);
     F=fopen(filename, "rb");
     if (mod_fread(vz, sizeof(float)*HII_TOT_NUM_PIXELS, 1, F)!=1){
       fprintf(stderr, "perturb_field: Read error occured while reading velocity box.\n");
@@ -244,7 +282,7 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
       fftwf_free(vx);  fftwf_free(vy); fftwf_free(vz);fftwf_free(updated);
       free_ps(); return -1;
     }
-    sprintf(filename, "%s/deltax_z0.00_%i_%.0fMpc",boxdir, DIM, BOX_LEN);
+    sprintf(filename, "../Boxes/deltax_z0.00_%i_%.0fMpc", DIM, BOX_LEN);
     F = fopen(filename, "rb");
     fprintf(stderr, "Reading in deltax box\n");
     if (mod_fread(deltax, sizeof(float)*TOT_FFT_NUM_PIXELS, 1, F)!=1){
@@ -259,6 +297,83 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
     f_pixel_factor = DIM/(float)HII_DIM;
     mass_factor = pow(f_pixel_factor, 3);
 
+
+/* ************************************************************************* *
+ *                           BEGIN 2LPT PART                                 *
+ * ************************************************************************* */
+// reference: reference: Scoccimarro R., 1998, MNRAS, 299, 1097-1118 Appendix D
+  if(SECOND_ORDER_LPT_CORRECTIONS){
+      
+    //fprintf(stderr, "Begin initialization 2LPT velocity field\nTotal elapsed time: %ds\n", time(NULL) - start_time);
+    //last_time = time(NULL);
+    // allocate memory for the velocity boxes and read them in
+    vx_2LPT = (float *) malloc(sizeof(float)*HII_TOT_NUM_PIXELS);
+    if (!vx_2LPT){
+      fprintf(stderr, "perturb_field: Error allocating memory for 2LPT velocity box\nAborting...\n");
+      free(vx);  free(vy); free(vz);
+      return -1;
+     }
+    vy_2LPT = (float *) malloc(sizeof(float)*HII_TOT_NUM_PIXELS);
+    if (!vy_2LPT){
+      fprintf(stderr, "perturb_field: Error allocating memory for 2LPT velocity box\nAborting...\n");
+      free(vx_2LPT);
+      free(vx);  free(vy); free(vz);
+      return -1;
+    }
+    vz_2LPT = (float *) malloc(sizeof(float)*HII_TOT_NUM_PIXELS);
+    if (!vz_2LPT){
+      fprintf(stderr, "perturb_field: Error allocating memory for 2LPT velocity box\nAborting...\n");
+      free(vx_2LPT); free(vy_2LPT);
+      free(vx);  free(vy); free(vz);
+      return -1;
+    }
+
+    // read again velocities
+
+    sprintf(filename, "../Boxes/vxoverddot_2LPT_%i_%.0fMpc", HII_DIM, BOX_LEN);
+    F=fopen(filename, "rb");
+    if (mod_fread(vx_2LPT, sizeof(float)*HII_TOT_NUM_PIXELS, 1, F)!=1){
+      fprintf(stderr, "perturb_field: Read error occured while reading velocity 2LPT box.\n");
+      free(vx);  free(vy); free(vz);
+      free(vx_2LPT);  free(vy_2LPT); free(vz_2LPT);
+      return -1;
+    }
+    fclose(F);
+    //fprintf(stderr, "Read 2LPT vx velocity field\nElapsed time: %ds\n", time(NULL) - last_time);
+    //last_time = time(NULL);
+
+    sprintf(filename, "../Boxes/vyoverddot_2LPT_%i_%.0fMpc", HII_DIM, BOX_LEN);
+    F=fopen(filename, "rb");
+    if (mod_fread(vy_2LPT, sizeof(float)*HII_TOT_NUM_PIXELS, 1, F)!=1){
+      fprintf(stderr, "perturb_field: Read error occured while reading velocity 2LPT box.\n");
+      free(vx);  free(vy); free(vz);
+      free(vx_2LPT);  free(vy_2LPT); free(vz_2LPT);
+      return -1;
+    }
+    fclose(F);
+    //fprintf(stderr, "Read 2LPT vy velocity field\nElapsed time: %ds\n", time(NULL) - last_time);
+    //last_time = time(NULL);
+
+    sprintf(filename, "../Boxes/vzoverddot_2LPT_%i_%.0fMpc", HII_DIM, BOX_LEN);
+    F=fopen(filename, "rb");
+   if (mod_fread(vz_2LPT, sizeof(float)*HII_TOT_NUM_PIXELS, 1, F)!=1){
+      fprintf(stderr, "perturb_field: Read error occured while reading velocity box.\n");
+      free(vx);  free(vy); free(vz);
+      free(vx_2LPT);  free(vy_2LPT); free(vz_2LPT);
+      return -1;
+    }
+    fclose(F);
+    //fprintf(stderr, "Read 2LPT vz velocity field\nElapsed time: %ds\n", time(NULL) - last_time);
+    //last_time = time(NULL);
+
+    // now add the missing factor in eq. D9
+    for (ct=0; ct<HII_TOT_NUM_PIXELS; ct++){
+      vx_2LPT[ct] *= (displacement_factor_2LPT - init_displacement_factor_2LPT) / BOX_LEN; // this is now comoving displacement in units of box size
+      vy_2LPT[ct] *= (displacement_factor_2LPT - init_displacement_factor_2LPT) / BOX_LEN; // this is now comoving displacement in units of box size
+      vz_2LPT[ct] *= (displacement_factor_2LPT - init_displacement_factor_2LPT) / BOX_LEN; // this is now comoving displacement in units of box size
+    }
+    //fprintf(stderr, "Read 2LPT velocity field\nTotal time: %ds\n", time(NULL) - start_time);
+  }
 
 /* ************************************************************************* *
  *                            END 2LPT PART                                  *
@@ -287,6 +402,14 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
 	  zf += vz[HII_R_INDEX(HII_i, HII_j, HII_k)];
 
 
+    // 2LPT PART
+    // add second order corrections
+    if(SECOND_ORDER_LPT_CORRECTIONS){
+      xf -= vx_2LPT[HII_R_INDEX(HII_i,HII_j,HII_k)];
+      yf -= vy_2LPT[HII_R_INDEX(HII_i,HII_j,HII_k)];
+      zf -= vz_2LPT[HII_R_INDEX(HII_i,HII_j,HII_k)];
+    }
+
 	  xf *= HII_DIM;
 	  yf *= HII_DIM;
 	  zf *= HII_DIM;
@@ -305,7 +428,7 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
 	  if (yi < 0) {yi += HII_DIM;}
 	  if (zi >= HII_DIM){ zi -= HII_DIM;}
 	  if (zi < 0) {zi += HII_DIM;}
-
+        
 	  // now move the mass
 	  *( (float *)updated + HII_R_FFT_INDEX(xi, yi, zi) ) +=
 	    (1 + init_growth_factor*deltax[R_FFT_INDEX(i,j,k)]);
@@ -331,12 +454,11 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
     fftwf_free(vy); fftwf_free(vz); fftwf_free(deltax);
   }
 
-
   /****  Print and convert to velocities *****/
   fprintf(stderr, "Done with PT. Printing density field and computing velocity components.\n");
   fftwf_plan_with_nthreads(NUMCORES); // use all processors for perturb_field
   save_updated = (fftwf_complex *) vx;
-  sprintf(filename, "%s/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc", boxdir,REDSHIFT, HII_DIM, BOX_LEN);
+  sprintf(filename, "../Boxes/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc", REDSHIFT, HII_DIM, BOX_LEN);
   F=fopen(filename, "wb");
   if (EVOLVE_DENSITY_LINEARLY){
     if (print_box_no_padding((float *)updated, HII_DIM, F) < 0){
@@ -384,7 +506,7 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
 	}
       }
     }
-
+      
     if (print_box_no_padding((float *)updated, HII_DIM, F) < 0){
       fprintf(stderr, "perturb_field: Write error occured writting deltax box!\n");
       fftwf_free(updated); fftwf_free(vx); fclose(F);
@@ -397,20 +519,20 @@ int run_perturb_field (char *boxdir, float REDSHIFT){
 
   // x-component
   fprintf(stderr, "Generate x-component\n");
-  if (process_velocity(updated, dDdt/growth_factor, REDSHIFT, 0, boxdir) < 0){
+  if (process_velocity(updated, dDdt/growth_factor, REDSHIFT, 0) < 0){
     fftwf_free(updated); fftwf_free(vx); fftwf_cleanup_threads(); free_ps(); return 0;
   }
 
   // y-component
   fprintf(stderr, "Generate y-component\n");
   memcpy(updated, save_updated, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
-  if (process_velocity(updated, dDdt/growth_factor, REDSHIFT, 1, boxdir) < 0){
+  if (process_velocity(updated, dDdt/growth_factor, REDSHIFT, 1) < 0){
     fftwf_free(updated); fftwf_free(vx); fftwf_cleanup_threads(); free_ps(); return 0;
   }
   // z-component
   fprintf(stderr, "Generate z-component\n");
   memcpy(updated, save_updated, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
-  process_velocity(updated, dDdt/growth_factor, REDSHIFT, 2, boxdir);
+  process_velocity(updated, dDdt/growth_factor, REDSHIFT, 2);
 
 
   // deallocate
