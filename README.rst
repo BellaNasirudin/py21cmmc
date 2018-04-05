@@ -68,7 +68,7 @@ Installation
 First, you'll need to have the required C libraries: ``gsl``, ``fftw`` (make sure you install the floating-point version!)
 ``openmp`` and ``gslcblas``.
 
-Then just do::
+Then just do (not actually online yet!)::
 
     pip install py21cmmc
 
