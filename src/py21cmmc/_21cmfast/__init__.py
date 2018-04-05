@@ -74,6 +74,13 @@ class LightCone:
             if i==0:
                 self.k[j] = (raw_return.PS_k[(j + k_offset) + self.nbins_ps * 0])
 
+        self.lightcone_box = np.zeros((self.HII_DIM, self.HII_DIM, self.ncells_los))
+        #TODO: this must be much slower than just doing a numpy array
+        for k in range(self.ncells_los):
+            for j in range(self.HII_DIM):
+                for i in range(self.HII_DIM):
+                    self.lightcone_box[i,j,k] = raw_return.LCBox[k + self.ncells_los*(j + self.HII_DIM * i)]
+
 boxdir = os.path.expanduser(os.path.join("~",".py21cmmc","Boxes"))
 
 _drive_21cmMC.restype = Point
