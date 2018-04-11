@@ -4,7 +4,7 @@ import os.path as pth
 from collections import OrderedDict
 import ctypes
 
-from . import drive_21cmMC
+from . import drive_21cmMC, AstroParams, CosmoParams, FlagOptions
 
 
 def _set_flag_options(redshifts, mass_dependent_zeta = False, read_from_file=True, generate_new_ics = False,
@@ -198,7 +198,7 @@ def _set_cosmo_params(RANDOM_SEED=None, SIGMA_8 = 0.820000, littleh = 0.680000,
     OMEGA_L = 1.0 - OMEGA_M
 
     if RANDOM_SEED is None:
-        RANDOM_SEED = np.random.uniform(1,1e12)
+        RANDOM_SEED = int(np.random.uniform(1,1e12))
 
     CosmologicalParameters = OrderedDict(
         RANDOM_SEED = RANDOM_SEED,
@@ -228,25 +228,25 @@ def _write_walker_file(redshifts, flag_options, astro_params, random_ids= ('3.00
 
     # Add number of redshifts
     # If using the light-cone version of the code, don't need to set a redshift
-    seq.append("%d" % (flag_options['number_redshifts']))
+    seq.append("%d" % (flag_options.N_USER_REDSHIFTS))
     # Add light cone flag
-    seq.append("%d" % (flag_options['lightcone_flag']))
+    seq.append("%d" % (flag_options.USE_LIGHTCONE))
     # If power-law dependence on ionising efficiency is allowed. Add the flag here (support not yet included)
     seq.append("0")
     # Add redshift for Ts.c calculation
-    seq.append("%g" % (flag_options['TS_calc_z']))
+    seq.append("%g" % (flag_options.REDSHIFT))
 
     StringArgument = separator.join(seq)
 
     with open("Walker_%s.txt" % (StringArgument_other), "w") as f:
         f.write("FLAGS")
-        for key,val in flag_options.items():
-            if key not in ['number_redshifts', 'lightcone_flag', 'TS_calc_z']:
-                f.write("    %s"%val)
+        for key in flag_options._fields_:
+            if key[0] not in ['N_USER_REDSHIFTS', 'USE_LIGHTCONE', 'REDSHIFT']:
+                f.write("    %s"%(getattr(flag_options, key[0])))
         f.write("\n")
 
-        for key,val in astro_params.items():
-            f.write("%s    %f\n"%(key,val))
+        for key in astro_params._fields_:
+            f.write("%s    %f\n"%(key[0],getattr(astro_params, key[0])))
 
         if hasattr(redshifts, "__len__"):
             for z in redshifts:
@@ -256,29 +256,31 @@ def _write_walker_file(redshifts, flag_options, astro_params, random_ids= ('3.00
 def run_single_instance(redshifts, flag_options=None, astro_parameters = None, cosmo_parameters = None,
                         random_ids= ('3.000000', '3.000000') ):
 
-    # Fill up each of the variables/options lists to pass to the driver.
-    flag_options = _set_flag_options(redshifts, **flag_options)
-    astro_parameters = _set_astro_params(flag_options['INHOMO_RECO'], **astro_parameters)
-    cosmo_parameters = _set_cosmo_params(**cosmo_parameters)
+    # We don't want to use empty dict as a default, as it is mutable. So set it here.
+    flag_options = flag_options or {}
+    astro_parameters = astro_parameters or {}
+    cosmo_parameters = cosmo_parameters or {}
 
-    if flag_options['read_from_file']:
+    # Turn each of the passed dictionaries into Ctypes structures.
+    flag_options = FlagOptions(redshifts, **flag_options)
+    astro_parameters = AstroParams(flag_options.INHOMO_RECO, **astro_parameters)
+    cosmo_parameters = CosmoParams(**cosmo_parameters)
+
+    if flag_options.READ_FROM_FILE:
         _write_walker_file(redshifts, flag_options, astro_parameters, random_ids)
 
-    # Need to create the actual lists that go into the driver
-    #TODO: would be much better if these were structs...
-    flag_options_c = (ctypes.c_float * len(flag_options))(*flag_options.values())
-    astro_params_c = (ctypes.c_float * len(astro_parameters))(*astro_parameters.values())
-    cosmo_params_c = (ctypes.c_float * len(cosmo_parameters))(*cosmo_parameters.values())
+    # flag_options_c = (ctypes.c_float * len(flag_options))(*flag_options.values())
+    # astro_params_c = (ctypes.c_float * len(astro_parameters))(*astro_parameters.values())
+    # cosmo_params_c = (ctypes.c_float * len(cosmo_parameters))(*cosmo_parameters.values())
 
     #TODO: should add the options to do the init or create_dens_veloc like in the script (actually better to do in
     #      another function)
 
     output = drive_21cmMC(
-        '%s'%(random_ids[0]),
-        '%s'%(random_ids[1]),
-        flag_options_c,
-        astro_params_c,
-        cosmo_params_c
+        random_ids,
+        flag_options,
+        astro_parameters,
+        cosmo_parameters
     )
 
     return output

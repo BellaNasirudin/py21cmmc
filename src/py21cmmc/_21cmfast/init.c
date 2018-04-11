@@ -1,6 +1,6 @@
-#include "../Parameter_files/INIT_PARAMS.H"
-#include "../Parameter_files/ANAL_PARAMS.H"
-#include "../Parameter_files/Variables.h"
+#include "Parameter_files/INIT_PARAMS.H"
+#include "Parameter_files/ANAL_PARAMS.H"
+#include "Parameter_files/Variables.h"
 #include "filter.c"
 
 /*
@@ -92,24 +92,24 @@ int main(int argc, char ** argv){
   gsl_rng * r[NUMCORES];
   time_t start_time, curr_time;
   int NUM_RNG_THREADS;
-    
+
     /****** Modifications to allow the cosmology and random seed to be obtained from file *****/
-    
+
     char dummy_string[500];
-    
+
     INDIVIDUAL_ID = atof(argv[1]);
     INDIVIDUAL_ID_2 = atof(argv[2]);
-    
+
     double *PARAM_COSMOLOGY_VALS = calloc(TOTAL_COSMOLOGY_FILEPARAMS,sizeof(double));
-    
+
     sprintf(filename,"WalkerCosmology_%1.6lf_%1.6lf.txt",INDIVIDUAL_ID,INDIVIDUAL_ID_2);
     F = fopen(filename,"rt");
-    
+
     for(i=0;i<TOTAL_COSMOLOGY_FILEPARAMS;i++) {
         fscanf(F,"%s\t%lf\n",&dummy_string,&PARAM_COSMOLOGY_VALS[i]);
     }
     fclose(F);
-    
+
     RANDOM_SEED = (int)PARAM_COSMOLOGY_VALS[0];
     SIGMA8 = (float)PARAM_COSMOLOGY_VALS[1];
     hlittle = (float)PARAM_COSMOLOGY_VALS[2];
@@ -117,7 +117,7 @@ int main(int argc, char ** argv){
     OMl = (float)PARAM_COSMOLOGY_VALS[4];
     OMb = (float)PARAM_COSMOLOGY_VALS[5];
     POWER_INDEX = (float)PARAM_COSMOLOGY_VALS[6];
-    
+
 
   /************  INITIALIZATION **********************/
 
@@ -212,10 +212,10 @@ int main(int argc, char ** argv){
 	k_y = n_y * DELTA_K;
 
       // since physical space field is real, only half contains independent modes
-      for (n_z=0; n_z<=MIDDLE; n_z++){ 
+      for (n_z=0; n_z<=MIDDLE; n_z++){
 	// convert index to numerical value for this component of the k-mode: k = (2*pi/L) * n
 	k_z = n_z * DELTA_K;
-	
+
 	// now get the power spectrum; remember, only the magnitude of k counts (due to issotropy)
 	// this could be used to speed-up later maybe
 	k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
@@ -269,7 +269,7 @@ int main(int argc, char ** argv){
   for (i=0; i<HII_DIM; i++){
     for (j=0; j<HII_DIM; j++){
       for (k=0; k<HII_DIM; k++){
-	smoothed_box[HII_R_INDEX(i,j,k)] = 
+	smoothed_box[HII_R_INDEX(i,j,k)] =
 	*((float *)box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
 				       (unsigned long long)(j*f_pixel_factor+0.5),
 				       (unsigned long long)(k*f_pixel_factor+0.5)))/VOLUME;
@@ -283,7 +283,7 @@ int main(int argc, char ** argv){
     fprintf(stderr, "init.c: Write error occured writting smoothed deltax box!\n");
   }
   fclose(OUT);
-    
+
   /******* PERFORM INVERSE FOURIER TRANSFORM *****************/
   fprintf(stderr, "Getting and writting real-space box...\n");
   sprintf(filename, "../Boxes/deltak_z0.00_%i_%.0fMpc", DIM, BOX_LEN);
@@ -306,7 +306,7 @@ int main(int argc, char ** argv){
   fftwf_execute(plan);
   fftwf_destroy_plan(plan);
   fftwf_cleanup();
-    
+
   /***** Write the real space field *****/
   sprintf(filename, "../Boxes/deltax_z0.00_%i_%.0fMpc", DIM, BOX_LEN);
   if (!(OUT=fopen(filename, "wb"))){
@@ -343,9 +343,9 @@ int main(int argc, char ** argv){
       else
 	k_y = n_y * DELTA_K;
 
-      for (n_z=0; n_z<=MIDDLE; n_z++){ 
+      for (n_z=0; n_z<=MIDDLE; n_z++){
 	k_z = n_z * DELTA_K;
-	
+
 	k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
 
 	// now set the velocities
@@ -368,14 +368,14 @@ int main(int argc, char ** argv){
   fprintf(stderr, "Now doing the FFT to get real-space field\n");
   plan = fftwf_plan_dft_c2r_3d(DIM, DIM, DIM, (fftwf_complex *)box, (float *)box, FFTW_ESTIMATE);
   fftwf_execute(plan);
-  fprintf(stderr, "Sampling...\n");  
+  fprintf(stderr, "Sampling...\n");
   // now sample to lower res
   // now sample the filtered box
   fprintf(stderr, "Sampling...\n");
   for (i=0; i<HII_DIM; i++){
     for (j=0; j<HII_DIM; j++){
       for (k=0; k<HII_DIM; k++){
-	smoothed_box[HII_R_INDEX(i,j,k)] = 
+	smoothed_box[HII_R_INDEX(i,j,k)] =
 	  *((float *)box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
 				       (unsigned long long)(j*f_pixel_factor+0.5),
 				       (unsigned long long)(k*f_pixel_factor+0.5)));
@@ -391,7 +391,7 @@ int main(int argc, char ** argv){
   }
   fclose(OUT);
 
-  
+
   /**** y component ****/
   fprintf(stderr, "Setting y velocity field...\n");
   // read in the box
@@ -417,9 +417,9 @@ int main(int argc, char ** argv){
       else
 	k_y = n_y * DELTA_K;
 
-      for (n_z=0; n_z<=MIDDLE; n_z++){ 
+      for (n_z=0; n_z<=MIDDLE; n_z++){
 	k_z = n_z * DELTA_K;
-	
+
 	k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
 
 	// now set the velocities
@@ -448,7 +448,7 @@ int main(int argc, char ** argv){
   for (i=0; i<HII_DIM; i++){
     for (j=0; j<HII_DIM; j++){
       for (k=0; k<HII_DIM; k++){
-	smoothed_box[HII_R_INDEX(i,j,k)] = 
+	smoothed_box[HII_R_INDEX(i,j,k)] =
 	  *((float *)box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
 				       (unsigned long long)(j*f_pixel_factor+0.5),
 				       (unsigned long long)(k*f_pixel_factor+0.5)));
@@ -490,9 +490,9 @@ int main(int argc, char ** argv){
       else
 	k_y = n_y * DELTA_K;
 
-      for (n_z=0; n_z<=MIDDLE; n_z++){ 
+      for (n_z=0; n_z<=MIDDLE; n_z++){
 	k_z = n_z * DELTA_K;
-	
+
 	k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
 
 	// now set the velocities
@@ -516,13 +516,13 @@ int main(int argc, char ** argv){
   fftwf_execute(plan);
   fftwf_destroy_plan(plan);
   fftwf_cleanup();
-  fprintf(stderr, "Sampling...\n");  
+  fprintf(stderr, "Sampling...\n");
   // now sample to lower res
   // now sample the filtered box
   for (i=0; i<HII_DIM; i++){
     for (j=0; j<HII_DIM; j++){
       for (k=0; k<HII_DIM; k++){
-	smoothed_box[HII_R_INDEX(i,j,k)] = 
+	smoothed_box[HII_R_INDEX(i,j,k)] =
 	  *((float *)box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
 				       (unsigned long long)(j*f_pixel_factor+0.5),
 				       (unsigned long long)(k*f_pixel_factor+0.5)));
@@ -545,10 +545,10 @@ int main(int argc, char ** argv){
   // Generation of the second order Lagrangian perturbation theory (2LPT) corrections to
   // the ZA
   // reference: Scoccimarro R., 1998, MNRAS, 299, 1097-1118 Appendix D
- 
+
   // Parameter set in ANAL_PARAMS.H
   if(SECOND_ORDER_LPT_CORRECTIONS){
-    fprintf(stderr, "Begin 2LPT part\n");	
+    fprintf(stderr, "Begin 2LPT part\n");
     // use six supplementary boxes to store the gradients of phi_1 (eq. D13b)
     // Allocating the boxes
 #define PHI_INDEX(i, j) ((int) ((i) - (j)) + 3*((j)) - ((int)(j))/2  )
@@ -561,11 +561,11 @@ int main(int argc, char ** argv){
     // 21 -> 4
 
     fftwf_complex *phi_1[6];
-   
+
     for(i = 0; i < 3; ++i){
       for(j = 0; j <= i; ++j){
         fprintf(stderr, "Initialization phi_1[%d, %d] = phi_1[%d]\n", i, j, PHI_INDEX(i, j));
-        phi_1[PHI_INDEX(i, j)] = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);        
+        phi_1[PHI_INDEX(i, j)] = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
 
         if (!phi_1[PHI_INDEX(i, j)]){
           gsl_rng_free_threaded (r, NUM_RNG_THREADS); fprintf(stderr, "Init.c: Error allocating memory for phi_1[%d, %d].\nAborting...\n", i, j);
@@ -575,7 +575,7 @@ int main(int argc, char ** argv){
       }
     }
 
-    
+
     for(i = 0; i < 3; ++i){
       for(j = 0; j <= i; ++j){
 
@@ -585,10 +585,10 @@ int main(int argc, char ** argv){
         if (mod_fread(box, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS, 1, IN)!=1){
           fprintf(stderr, "init.c: Read error occured!\n");
           gsl_rng_free_threaded (r, NUM_RNG_THREADS); free(smoothed_box);  fftwf_free(box);  fclose(IN); fftwf_cleanup_threads();
-          
+
           for(i = 0; i < 3; ++i){
             for(j = 0; j <= i; ++j){
-              fftwf_free(phi_1[PHI_INDEX(i,j)]);        
+              fftwf_free(phi_1[PHI_INDEX(i,j)]);
             }
           }
           free_ps(); return -1;
@@ -611,21 +611,21 @@ int main(int argc, char ** argv){
             else
 	            k_y = n_y * DELTA_K;
 
-            for (n_z=0; n_z<=MIDDLE; n_z++){ 
+            for (n_z=0; n_z<=MIDDLE; n_z++){
 	            k_z = n_z * DELTA_K;
-	
+
 	            k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
-          
+
               	    float k[] = {k_x, k_y, k_z};
-              //fprintf(stderr, "(k = %.2e %.2e %.2e) ", k[0], k[1], k[2]); 
+              //fprintf(stderr, "(k = %.2e %.2e %.2e) ", k[0], k[1], k[2]);
 	            // now set the velocities
 	            if ((n_x==0) && (n_y==0) && (n_z==0)){ // DC mode
 	              phi_1[PHI_INDEX(i, j)][0] = 0;
 	            }
 	            else{
-                //fprintf(stderr, "%.2e ", phi_1[PHI_INDEX(i, j)][C_INDEX(n_x, n_y, n_z)] ); 
+                //fprintf(stderr, "%.2e ", phi_1[PHI_INDEX(i, j)][C_INDEX(n_x, n_y, n_z)] );
 	              phi_1[PHI_INDEX(i, j)][C_INDEX(n_x,n_y,n_z)] = -k[i]*k[j]*box[C_INDEX(n_x, n_y, n_z)]/k_sq/VOLUME;
-                //fprintf(stderr, "%.2e ", phi_1[PHI_INDEX(i, j)][C_INDEX(n_x, n_y, n_z)] ); 
+                //fprintf(stderr, "%.2e ", phi_1[PHI_INDEX(i, j)][C_INDEX(n_x, n_y, n_z)] );
 
 	            // note the last factor of 1/VOLUME accounts for the scaling in real-space, following the FFT
 	            }
@@ -634,20 +634,20 @@ int main(int argc, char ** argv){
           fprintf(stderr, "%i ", n_x);
       //printf("%i, (%f+%f*I)\n", n_x, creal(v_y[C_INDEX(n_x,0,0)]), cimag(v_y[C_INDEX(n_x,0,0)]));
         }
-        }   
+        }
         fprintf(stderr, "\n");
        // Now we can generate the real phi_1[i,j]
-    
+
         fprintf(stderr, "fftwf c2r phi_1[%d, %d]\n", i, j);
         plan = fftwf_plan_dft_c2r_3d(DIM, DIM, DIM, (fftwf_complex *)phi_1[PHI_INDEX(i, j)], (float *)phi_1[PHI_INDEX(i, j)], FFTW_ESTIMATE);
         fftwf_execute(plan);
-        
-    
+
+
       }
     }
 
 
-    
+
    // Then we will have the laplacian of phi_2 (eq. D13b)
    // After that we have to return in Fourier space and generate the Fourier transform of phi_2
 
@@ -664,13 +664,13 @@ int main(int argc, char ** argv){
             for(l = m+1; l < 3; ++l){
               //fprintf(stderr, "(%d %d) %d   ", l, m, PHI_INDEX(l, m));
     	        *((float *)box + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)) ) += ( *((float *)(phi_1[PHI_INDEX(l, l)]) + R_FFT_INDEX((unsigned long long) (i),(unsigned long long) (j),(unsigned long long) (k)))  ) * (  *((float *)(phi_1[PHI_INDEX(m, m)]) + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)))  );
-              //fprintf(stderr, "%.2f ", *((float *)box + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)) ) ); 
+              //fprintf(stderr, "%.2f ", *((float *)box + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)) ) );
     	        *((float *)box + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)) ) -= ( *((float *)(phi_1[PHI_INDEX(l, m)]) + R_FFT_INDEX((unsigned long long)(i),(unsigned long long) (j),(unsigned long long)(k) ) )  ) * (  *((float *)(phi_1[PHI_INDEX(l, m)]) + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k) ))  );
     	        //box[R_FFT_INDEX(i,j,k)] -= phi_1[PHI_INDEX(l, m)][R_FFT_INDEX(i,j,k)] *  phi_1[PHI_INDEX(l, m)][R_FFT_INDEX(i,j,k)];
-              //fprintf(stderr, "%.2e ", *((float *)box + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)) ) ); 
+              //fprintf(stderr, "%.2e ", *((float *)box + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)) ) );
     	        *((float *)box + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)) ) /= TOT_NUM_PIXELS;
 
-//	        smoothed_box[HII_R_INDEX(i,j,k)] = 
+//	        smoothed_box[HII_R_INDEX(i,j,k)] =
 //	          *((float *)box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
 //				       (unsigned long long)(j*f_pixel_factor+0.5),
 //				       (unsigned long long)(k*f_pixel_factor+0.5)));
@@ -680,7 +680,7 @@ int main(int argc, char ** argv){
         }
       }
     }
-    
+
     fprintf(stderr, "Done\nNow fft r2c\n");
     plan = fftwf_plan_dft_r2c_3d(DIM, DIM, DIM, (float *)box, (fftwf_complex *)box, FFTW_ESTIMATE);
     fftwf_execute(plan);
@@ -688,7 +688,7 @@ int main(int argc, char ** argv){
 
     // Now we can store the content of box in a back-up file
     // Then we can generate the gradients of phi_2 (eq. D13b and D9)
-    
+
 
     /***** Write out back-up k-box RHS eq. D13b *****/
     fprintf(stderr, "\nWritting back-up k-space box...\n");
@@ -737,9 +737,9 @@ int main(int argc, char ** argv){
         else
 	        k_y = n_y * DELTA_K;
 
-        for (n_z=0; n_z<=MIDDLE; n_z++){ 
+        for (n_z=0; n_z<=MIDDLE; n_z++){
 	        k_z = n_z * DELTA_K;
-	
+
 	        k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
 
 	        // now set the velocities
@@ -763,18 +763,18 @@ int main(int argc, char ** argv){
     fprintf(stderr, "Now doing the FFT to get real-space field\n");
     plan = fftwf_plan_dft_c2r_3d(DIM, DIM, DIM, (fftwf_complex *)box, (float *)box, FFTW_ESTIMATE);
     fftwf_execute(plan);
-    fprintf(stderr, "Sampling...\n");  
+    fprintf(stderr, "Sampling...\n");
     // now sample to lower res
     // now sample the filtered box
     fprintf(stderr, "Sampling...\n");
     for (i=0; i<HII_DIM; i++){
       for (j=0; j<HII_DIM; j++){
         for (k=0; k<HII_DIM; k++){
-	        smoothed_box[HII_R_INDEX(i,j,k)] = 
+	        smoothed_box[HII_R_INDEX(i,j,k)] =
 	          *((float *)box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
 				       (unsigned long long)(j*f_pixel_factor+0.5),
 				       (unsigned long long)(k*f_pixel_factor+0.5)));
-        } 
+        }
       }
     }
     // write out file
@@ -786,7 +786,7 @@ int main(int argc, char ** argv){
     }
     fclose(OUT);
 
-  
+
     /**** y component ****/
     fprintf(stderr, "Setting y velocity field 2LPT...\n");
     // read in the box
@@ -813,9 +813,9 @@ int main(int argc, char ** argv){
         else
 	        k_y = n_y * DELTA_K;
 
-        for (n_z=0; n_z<=MIDDLE; n_z++){ 
+        for (n_z=0; n_z<=MIDDLE; n_z++){
 	        k_z = n_z * DELTA_K;
-	
+
 	        k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
 
 	        // now set the velocities
@@ -845,7 +845,7 @@ int main(int argc, char ** argv){
     for (i=0; i<HII_DIM; i++){
       for (j=0; j<HII_DIM; j++){
         for (k=0; k<HII_DIM; k++){
-	        smoothed_box[HII_R_INDEX(i,j,k)] = 
+	        smoothed_box[HII_R_INDEX(i,j,k)] =
 	          *((float *)box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
 				       (unsigned long long)(j*f_pixel_factor+0.5),
 				       (unsigned long long)(k*f_pixel_factor+0.5)));
@@ -888,9 +888,9 @@ int main(int argc, char ** argv){
         else
 	        k_y = n_y * DELTA_K;
 
-        for (n_z=0; n_z<=MIDDLE; n_z++){ 
+        for (n_z=0; n_z<=MIDDLE; n_z++){
 	        k_z = n_z * DELTA_K;
-	
+
 	        k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
 
 	        // now set the velocities
@@ -912,18 +912,18 @@ int main(int argc, char ** argv){
     fprintf(stderr, "Now doing the FFT to get real-space field\n");
     plan = fftwf_plan_dft_c2r_3d(DIM, DIM, DIM, (fftwf_complex *)box, (float *)box, FFTW_ESTIMATE);
     fftwf_execute(plan);
-    fprintf(stderr, "Sampling...\n");  
+    fprintf(stderr, "Sampling...\n");
     // now sample to lower res
     // now sample the filtered box
     for (i=0; i<HII_DIM; i++){
       for (j=0; j<HII_DIM; j++){
         for (k=0; k<HII_DIM; k++){
-	        smoothed_box[HII_R_INDEX(i,j,k)] = 
+	        smoothed_box[HII_R_INDEX(i,j,k)] =
 	          *((float *)box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
 				       (unsigned long long)(j*f_pixel_factor+0.5),
 				       (unsigned long long)(k*f_pixel_factor+0.5)));
           //fprintf(stderr, "%.2e ", smoothed_box[HII_R_INDEX(i, j, k)]);
-        } 
+        }
       }
     }
     // write out file
@@ -934,17 +934,17 @@ int main(int argc, char ** argv){
       fprintf(stderr, "init.c: Write error occured writting v_z box!\n");
     }
     fclose(OUT);
-      
+
     // deallocate the supplementary boxes
     for(i = 0; i < 3; ++i){
       for(j = 0; j <= i; ++j){
-        fftwf_free(phi_1[PHI_INDEX(i,j)]);              
+        fftwf_free(phi_1[PHI_INDEX(i,j)]);
       }
     }
   }
 /* *********************************************** *
  *               END 2LPT PART                     *
- * *********************************************** */             
+ * *********************************************** */
 
 
   // deallocate

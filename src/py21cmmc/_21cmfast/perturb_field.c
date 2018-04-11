@@ -1,6 +1,6 @@
-#include "../Parameter_files/INIT_PARAMS.H"
-#include "../Parameter_files/ANAL_PARAMS.H"
-#include "../Parameter_files/Variables.h"
+#include "Parameter_files/INIT_PARAMS.H"
+#include "Parameter_files/ANAL_PARAMS.H"
+#include "Parameter_files/Variables.h"
 #include "bubble_helper_progs.c"
 
 #define TOTAL_COSMOLOGY_FILEPARAMS (int)7
@@ -77,9 +77,9 @@ int process_velocity(fftwf_complex *updated, float dDdt_over_D, float REDSHIFT, 
       else
 	k_y = n_y * DELTA_K;
 
-      for (n_z=0; n_z<=HII_MIDDLE; n_z++){ 
+      for (n_z=0; n_z<=HII_MIDDLE; n_z++){
 	k_z = n_z * DELTA_K;
-	
+
 	k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
 
 	// now set the velocities
@@ -117,7 +117,7 @@ int process_velocity(fftwf_complex *updated, float dDdt_over_D, float REDSHIFT, 
     return -1;
   }
   fclose(F);
-    
+
   return 0;
 }
 
@@ -139,22 +139,22 @@ int main (int argc, char ** argv){
     return -1;
   }
   REDSHIFT = atof(argv[1]);
-    
+
     char dummy_string[500];
-    
+
     INDIVIDUAL_ID = atof(argv[2]);
     INDIVIDUAL_ID_2 = atof(argv[3]);
-    
+
     double *PARAM_COSMOLOGY_VALS = calloc(TOTAL_COSMOLOGY_FILEPARAMS,sizeof(double));
-    
+
     sprintf(filename,"WalkerCosmology_%1.6lf_%1.6lf.txt",INDIVIDUAL_ID,INDIVIDUAL_ID_2);
     F = fopen(filename,"rt");
-    
+
     for(i=0;i<TOTAL_COSMOLOGY_FILEPARAMS;i++) {
         fscanf(F,"%s\t%lf\n",&dummy_string,&PARAM_COSMOLOGY_VALS[i]);
     }
     fclose(F);
-    
+
     RANDOM_SEED = (int)PARAM_COSMOLOGY_VALS[0];
     SIGMA8 = (float)PARAM_COSMOLOGY_VALS[1];
     hlittle = (float)PARAM_COSMOLOGY_VALS[2];
@@ -162,8 +162,8 @@ int main (int argc, char ** argv){
     OMl = (float)PARAM_COSMOLOGY_VALS[4];
     OMb = (float)PARAM_COSMOLOGY_VALS[5];
     POWER_INDEX = (float)PARAM_COSMOLOGY_VALS[6];
-    
-    
+
+
   // initialize and allocate thread info
   if (fftwf_init_threads()==0){
     fprintf(stderr, "perturb_field: ERROR: problem initializing fftwf threads\nAborting\n.");
@@ -176,7 +176,7 @@ int main (int argc, char ** argv){
     fprintf(stderr, "perturb_field.c: WARNING: Resolution is likely too low for accurate evolved density fields\n It Is recommended that you either increase the resolution (DIM/Box_LEN) or set the EVOLVE_DENSITY_LINEARLY flag to 1\n");
   }
 
-  // initialize power spectrum 
+  // initialize power spectrum
   init_ps();
   growth_factor = dicke(REDSHIFT);
   displacement_factor_2LPT = -(3.0/7.0) * growth_factor*growth_factor; // 2LPT eq. D8
@@ -201,7 +201,7 @@ int main (int argc, char ** argv){
     fprintf(stderr, "perturb_field: Error allocating memory for velocity box\nAborting...\n");
     free_ps(); return -1;
   }
-    
+
   // check if the linear evolution flag was set
   if (EVOLVE_DENSITY_LINEARLY){
     sprintf(filename, "../Boxes/smoothed_deltax_z0.00_%i_%.0fMpc", HII_DIM, BOX_LEN);
@@ -274,7 +274,7 @@ int main (int argc, char ** argv){
       vz[ct] *= (growth_factor-init_growth_factor) / BOX_LEN; // this is now comoving displacement in units of box size
     }
 
-    
+
     // read in the linear density field
     deltax = (float *) fftwf_malloc(sizeof(float)*TOT_FFT_NUM_PIXELS);
     if (!deltax){
@@ -303,7 +303,7 @@ int main (int argc, char ** argv){
  * ************************************************************************* */
 // reference: reference: Scoccimarro R., 1998, MNRAS, 299, 1097-1118 Appendix D
   if(SECOND_ORDER_LPT_CORRECTIONS){
-      
+
     //fprintf(stderr, "Begin initialization 2LPT velocity field\nTotal elapsed time: %ds\n", time(NULL) - start_time);
     //last_time = time(NULL);
     // allocate memory for the velocity boxes and read them in
@@ -428,7 +428,7 @@ int main (int argc, char ** argv){
 	  if (yi < 0) {yi += HII_DIM;}
 	  if (zi >= HII_DIM){ zi -= HII_DIM;}
 	  if (zi < 0) {zi += HII_DIM;}
-        
+
 	  // now move the mass
 	  *( (float *)updated + HII_R_FFT_INDEX(xi, yi, zi) ) +=
 	    (1 + init_growth_factor*deltax[R_FFT_INDEX(i,j,k)]);
@@ -449,7 +449,7 @@ int main (int argc, char ** argv){
     }
     //    ave_delta /= (double)HII_TOT_NUM_PIXELS;
     //    fprintf(stderr, "ave is %e\n", ave_delta);
- 
+
     // deallocate
     fftwf_free(vy); fftwf_free(vz); fftwf_free(deltax);
   }
@@ -506,13 +506,13 @@ int main (int argc, char ** argv){
 	}
       }
     }
-      
+
     if (print_box_no_padding((float *)updated, HII_DIM, F) < 0){
       fprintf(stderr, "perturb_field: Write error occured writting deltax box!\n");
       fftwf_free(updated); fftwf_free(vx); fclose(F);
       free_ps(); return -1;
     }
- 
+
     memcpy(updated, save_updated, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
   }
   fclose(F);

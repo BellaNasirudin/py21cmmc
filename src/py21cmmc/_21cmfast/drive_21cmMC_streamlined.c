@@ -1,6 +1,6 @@
-#include "../Parameter_files/INIT_PARAMS.H"
-#include "../Parameter_files/ANAL_PARAMS.H"
-#include "../Parameter_files/Variables.h"
+#include "Parameter_files/INIT_PARAMS.H"
+#include "Parameter_files/ANAL_PARAMS.H"
+#include "Parameter_files/Variables.h"
 #include "bubble_helper_progs.c"
 #include "heating_helper_progs.c"
 #include "gsl/gsl_sf_erf.h"
@@ -95,6 +95,58 @@ unsigned long long coeval_box_pos_FFT(int LOS_dir,int xi,int yi,int zi){
     return position;
 }
 
+struct FlagOptionStruct{
+    int N_USER_REDSHIFT;   // Number of user defined redshifts for which find_HII_bubbles will be called
+    int USE_LIGHTCONE;     // Flag set to 1 if light cone boxes are to be used (feature has yet to be added)
+    int INCLUDE_ZETA_PL;   // Requires work... see comment in function.
+    float REDSHIFT;        // Redshift for which Ts.c is evolved down to, i.e. z'
+    int READ_FROM_FILE;    // Read parameters from file rather than variable.
+    int GenerateNewICs;    // Whether to create a new density field at each sampling (i.e. new initial conditions). Must use if the cosmology is being varied
+    int SUBCELL_RSD;       // Whether to include redshift space distortions along the line-of-sight (z-direction only).
+    int USE_FCOLL_IONISATION_TABLE; //Whether to use an interpolation for the collapsed fraction for the find_HII_bubbles part of the computation
+    int SHORTEN_FCOLL;     // Whether to use an interpolation for the collapsed fraction for the Ts.c computation
+    int USE_TS_FLUCT;      // Whether to perform the full evolution of the IGM spin temperature, or just assume the saturated spin temperature limit
+    int INHOMO_RECO;       // Whether to include inhomogeneous recombinations into the calculation of the ionisation fraction
+    int STORE_DATA;        // Whether to output the global data for the IGM neutral fraction and average temperature brightness (used for the global signal)
+    int PRINT_FILES;
+    int PRINT_COEVAL_21cmBoxes;
+    int PRINT_LIGHTCONE_21cmBoxes;
+    double *redshifts;
+};
+
+struct AstroParamStruct{
+    float EFF_FACTOR_PL_INDEX;
+    float HII_EFF_FACTOR;
+
+    float R_BUBBLE_MAX;
+
+    float ION_Tvir_MIN;
+    float L_X;
+    float NU_X_THRESH;
+    float NU_X_BAND_MAX;
+    float NU_X_MAX;
+    float X_RAY_SPEC_INDEX;
+    float X_RAY_Tvir_MIN;
+    float X_RAY_Tvir_LOWERBOUND;
+    float X_RAY_Tvir_UPPERBOUND;
+    float F_STAR;
+    float t_STAR;
+    int N_RSD_STEPS;
+    int LOS_direction;
+    float Z_HEAT_MAX;
+    float ZPRIME_STEP_FACTOR;
+};
+
+struct CosmoParamStruct{
+    unsigned long long RANDOM_SEED;
+    float SIGMA8;
+    float hlittle;
+    float OMm;
+    float OMl;
+    float OMb;
+    float POWER_INDEX;
+
+};
 
 struct ReturnData{
     float *RedshiftData;
@@ -108,7 +160,8 @@ struct ReturnData{
 
 
 
-struct ReturnData drive_21CMMC(char* arg1, char* arg2, float FlagOptions[], float AstrophysicalParams[], float CosmologicalParams[]) {
+struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct FlagOptionStruct FlagOptions,
+                               struct AstroParamStruct AstrophysicalParams, struct CosmoParamStruct CosmologicalParams) {
 
     // The standard build of 21cmFAST requires openmp for the FFTs. 21CMMC does not, however, for some computing architectures, I found it important to include this
     omp_set_num_threads(1);
@@ -150,20 +203,20 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, float FlagOptions[], floa
     INDIVIDUAL_ID_2 = atof(arg2);
 
     // Number of user defined redshifts for which find_HII_bubbles will be called
-    N_USER_REDSHIFT = (int)FlagOptions[0];
+    N_USER_REDSHIFT = FlagOptions.N_USER_REDSHIFT;
 
     // Flag set to 1 if light cone boxes are to be used (feature has yet to be added)
-    USE_LIGHTCONE = (int)FlagOptions[1];
+    USE_LIGHTCONE = FlagOptions.USE_LIGHTCONE;
 
     /****** NOTE: Need to add in a flag here, which toggles including alpha as a useable parameter ******/
     /****** In doing it here, it enables the majority of the remaining code to be relatively straight-forward (i.e. doesn't change existing text-file structure etc.) ******/
     /****** This hasn't been rigorously checked yet. Need to look into this at some point... *******/
-    INCLUDE_ZETA_PL = (int)FlagOptions[2];
+    INCLUDE_ZETA_PL = FlagOptions.INCLUDE_ZETA_PL;
 
     // Redshift for which Ts.c is evolved down to, i.e. z'
-    REDSHIFT = FlagOptions[3];
+    REDSHIFT = FlagOptions.REDSHIFT;
 
-    READ_FROM_FILE = (int)FlagOptions[4];
+    READ_FROM_FILE = FlagOptions.READ_FROM_FILE;
     // Determines the lenght of the walker file, given the values set by TOTAL_AVAILABLE_PARAMS in Variables.h and the number of redshifts
     if(USE_LIGHTCONE) {
         WALKER_FILE_LENGTH = TOTAL_AVAILABLE_PARAMS + 1;
@@ -177,6 +230,7 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, float FlagOptions[], floa
     double *PARAM_VALS = calloc(TOTAL_AVAILABLE_PARAMS,sizeof(double));
 
     /////////////////   Read in the cosmological parameter data     /////////////////
+
 
     if(READ_FROM_FILE) {
 
@@ -199,14 +253,13 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, float FlagOptions[], floa
     }
     else {
 
-        RANDOM_SEED = (unsigned long long)CosmologicalParams[0];
-        SIGMA8 = (float)CosmologicalParams[1];
-        hlittle = (float)CosmologicalParams[2];
-        OMm = (float)CosmologicalParams[3];
-        OMl = (float)CosmologicalParams[4];
-        OMb = (float)CosmologicalParams[5];
-        POWER_INDEX = (float)CosmologicalParams[6]; //power law on the spectral index, ns
-
+        RANDOM_SEED = CosmologicalParams.RANDOM_SEED;
+        SIGMA8 = CosmologicalParams.SIGMA8;
+        hlittle = CosmologicalParams.hlittle;
+        OMm = CosmologicalParams.OMm;
+        OMl = CosmologicalParams.OMl;
+        OMb = CosmologicalParams.OMb;
+        POWER_INDEX = CosmologicalParams.POWER_INDEX;
     }
 
     /////////////////   Read in the astrophysical parameter data     /////////////////
@@ -260,31 +313,34 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, float FlagOptions[], floa
         ZPRIME_STEP_FACTOR = PARAM_VALS[17];
     }
     else {
-        GenerateNewICs = (int)FlagOptions[5];
-        SUBCELL_RSD = (int)FlagOptions[6];
-        USE_FCOLL_IONISATION_TABLE = (int)FlagOptions[7];
-        SHORTEN_FCOLL = (int)FlagOptions[8];
-        USE_TS_FLUCT = (int)FlagOptions[9];
-        INHOMO_RECO = (int)FlagOptions[10];
-        STORE_DATA = (int)FlagOptions[11];
+        GenerateNewICs = FlagOptions.GenerateNewICs;
+        SUBCELL_RSD = FlagOptions.SUBCELL_RSD;
+        USE_FCOLL_IONISATION_TABLE = FlagOptions.USE_FCOLL_IONISATION_TABLE;
+        SHORTEN_FCOLL = FlagOptions.SHORTEN_FCOLL;
+        USE_TS_FLUCT = FlagOptions.USE_TS_FLUCT;
+        INHOMO_RECO = FlagOptions.INHOMO_RECO;
+        STORE_DATA = FlagOptions.STORE_DATA;
 
-        PRINT_FILES = (int)FlagOptions[12];
-        PRINT_COEVAL_21cmBoxes = (int)FlagOptions[13];
-        PRINT_LIGHTCONE_21cmBoxes = (int)FlagOptions[14];
+        PRINT_FILES = FlagOptions.PRINT_FILES;
+        PRINT_COEVAL_21cmBoxes = FlagOptions.PRINT_COEVAL_21cmBoxes;
+        PRINT_LIGHTCONE_21cmBoxes = FlagOptions.PRINT_LIGHTCONE_21cmBoxes;
 
-        for(i=0;i<N_USER_REDSHIFT;i++) {
-            redshifts[i] = FlagOptions[15+i];
-        }
+//        for(i=0;i<N_USER_REDSHIFT;i++) {
+        redshifts = FlagOptions.redshifts;
+ //       }
 
-        Z_HEAT_MAX = AstrophysicalParams[16];
-        ZPRIME_STEP_FACTOR = AstrophysicalParams[17];
+        Z_HEAT_MAX = AstrophysicalParams.Z_HEAT_MAX;
+        ZPRIME_STEP_FACTOR = AstrophysicalParams.ZPRIME_STEP_FACTOR;
     }
 
     // Initialise the power spectrum data, and relevant functions etc., for the entire file here (i.e. it is only done once here)
+
     init_ps();
 
     // If the USE_LIGHTCONE option is set, need to determing the size of the entire line-of-sight dimension for storing the slice indexes and corresponding reshifts per slice
     dR = (BOX_LEN / (double) HII_DIM) * CMperMPC; // size of cell (in comoving cm)
+
+
 
     if(USE_LIGHTCONE||INHOMO_RECO) {
         // Determine the number of redshifts within the Ts.c calculation to set N_USER_REDSHIFT for the light-cone version of the computation.
@@ -395,25 +451,24 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, float FlagOptions[], floa
     }
     else {
 
-        EFF_FACTOR_PL_INDEX = AstrophysicalParams[0];
-        HII_EFF_FACTOR = AstrophysicalParams[1];
+        EFF_FACTOR_PL_INDEX = AstrophysicalParams.EFF_FACTOR_PL_INDEX;
+        HII_EFF_FACTOR = AstrophysicalParams.HII_EFF_FACTOR;
 
-        R_BUBBLE_MAX = AstrophysicalParams[2];
+        R_BUBBLE_MAX = AstrophysicalParams.R_BUBBLE_MAX;
 
-        ION_Tvir_MIN = pow(10.,AstrophysicalParams[3]);
-        L_X = pow(10.,AstrophysicalParams[4]);
-        NU_X_THRESH = AstrophysicalParams[5];
-        NU_X_BAND_MAX = AstrophysicalParams[6];
-        NU_X_MAX = AstrophysicalParams[7];
-        X_RAY_SPEC_INDEX = AstrophysicalParams[8];
-        X_RAY_Tvir_MIN = pow(10.,AstrophysicalParams[9]);
-        X_RAY_Tvir_LOWERBOUND = AstrophysicalParams[10];
-        X_RAY_Tvir_UPPERBOUND = AstrophysicalParams[11];
-        F_STAR = AstrophysicalParams[12];
-        t_STAR = AstrophysicalParams[13];
-        N_RSD_STEPS = (int)AstrophysicalParams[14];
-        LOS_direction = (int)AstrophysicalParams[15];
-
+        ION_Tvir_MIN = pow(10.,AstrophysicalParams.ION_Tvir_MIN);
+        L_X = pow(10.,AstrophysicalParams.L_X);
+        NU_X_THRESH = AstrophysicalParams.NU_X_THRESH;
+        NU_X_BAND_MAX = AstrophysicalParams.NU_X_BAND_MAX;
+        NU_X_MAX = AstrophysicalParams.NU_X_MAX;
+        X_RAY_SPEC_INDEX = AstrophysicalParams.X_RAY_SPEC_INDEX;
+        X_RAY_Tvir_MIN = pow(10.,AstrophysicalParams.X_RAY_Tvir_MIN);
+        X_RAY_Tvir_LOWERBOUND = AstrophysicalParams.X_RAY_Tvir_LOWERBOUND;
+        X_RAY_Tvir_UPPERBOUND = AstrophysicalParams.X_RAY_Tvir_UPPERBOUND;
+        F_STAR = AstrophysicalParams.F_STAR;
+        t_STAR = AstrophysicalParams.t_STAR;
+        N_RSD_STEPS = AstrophysicalParams.N_RSD_STEPS;
+        LOS_direction = AstrophysicalParams.LOS_direction;
     }
 
     // If inhomogeneous recombinations are set, need to switch to an upper limit on the maximum bubble horizon (this is set above).
@@ -724,7 +779,7 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, float FlagOptions[], floa
     free(aveNF);
     free(aveTb);
 
-    free(redshifts);
+//    free(redshifts);
 
     free(full_index_LC);
     free(slice_redshifts);

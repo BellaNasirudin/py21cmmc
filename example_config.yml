@@ -1,47 +1,28 @@
 # Directory in which to find boxes
 boxdir: ~/.py21cmmc/Boxes
 
-# Choose appropriate redshifts to calculate (a list)
+# Choose appropriate redshifts to calculate.
+# If a list, get co-eval boxes at these redshifts.
+# If a scalar, get a lightcone *starting* at this redshift.
 redshifts: [9.]
 
-# Specify parameters that 21cmFAST uses. These are broken up into those found in INIT, ANAL, COSMOLOGY
-# and HEAT respectively. This needs to be expanded sufficiently, but at this point is proof-of-principle.
-21cmfast_init: {
-    HII_DIM: 128
+# Specify Random IDS for a particular run.
+# Note: this will probably change in a future release.
+random_ids: (3.000000, 3.000000)
+
+# Specify parameters that 21cmFAST uses. These are broken into flags, astro and cosmo parameters.
+# Not all options are specified here, and all available parameters, along with their defaults,
+# can be found using "py21cmmc defaults".
+flag_options: {
+    use_fcoll_table: False,
+    print_lightcone_cubes: True
 }
 
-21cmfast_anal: {
+astro_parameters: {
+    HII_EFF_FACTOR: 30.0,
+    ION_Tvir_MIN: 4.69897
 }
 
-21cmfast_cosmo: {
+cosmo_parameters: {
+    OMEGA_M: 0.31
 }
-
-21cmfast_heat: {
-}
-
-
-# Fiducial model parameters.
-zeta_val: 30.0
-MFP_val: 15.0
-TVir_val: 30000.0
-
-
-# The likelihood kwargs are specific to a certain kind of likelihood, which can be pluggable.
-# The following defaults correspond to the `traditional_c_based' likelihood.
-# Only required/used if generating a likelihood or doing MCMC.
-likelihood_kwargs: {
-    telescope_name: HERA331,
-    foreground_cut: 0.15,
-    shot_noise_cut: 1.0,
-    ModUncert: 0.10,
-    zeta: 30.0,
-    mfp: 15.0,
-    tvir: 30000.0,
-    noisedir: ~/Documents/Projects/Foregrounds/21CMMC_NoFileIO/21CMMC_NoFileIO_Source/Programs/NoiseData
-}
-
-
-# Set ranges for the parameters (only apply to MCMC).
-# zeta_range: [5., 100.]
-# mfp_range: [2., 20.]
-# log10tvir_range: [4, 5.5]

@@ -1,9 +1,9 @@
-#include "../Parameter_files/INIT_PARAMS.H"
-#include "../Parameter_files/ANAL_PARAMS.H"
-#include "../Parameter_files/HEAT_PARAMS.H"
+#include "Parameter_files/INIT_PARAMS.H"
+#include "Parameter_files/ANAL_PARAMS.H"
+#include "Parameter_files/HEAT_PARAMS.H"
 #include "bubble_helper_progs.c"
 #include "elec_interp.c"
-#include "../Parameter_files/Variables.h"
+#include "Parameter_files/Variables.h"
 
 #define NSPEC_MAX (int) 23
 #define RECFAST_NPTS (int) 501
@@ -42,7 +42,7 @@ int init_heat();
 int init_FcollTable(float zmin, float zmax);
 
 /* destruction/deallocation routine */
-void destruct_heat(); 
+void destruct_heat();
 
  /* returns the spectral emissity */
 double spectral_emissivity(double nu_norm, int flag);
@@ -67,7 +67,7 @@ double tauX(double nu, double x_e, double zp, double zpp, double HI_filling_fact
 double tauX_approx(double nu, double x_e, double zp, double zpp, double HI_filling_factor_zp);
 
 /* The total weighted HI + HeI + HeII  cross-section in pcm^-2 */
-double species_weighted_x_ray_cross_section(double nu, double x_e); 
+double species_weighted_x_ray_cross_section(double nu, double x_e);
 
 /* Returns the frequency threshold where \tau = 1 between zp and zpp,
  in the IGM with mean electron fraction x_e */
@@ -77,14 +77,14 @@ double nu_tau_one_approx(double zp, double zpp, double x_e, double HI_filling_fa
  /* Main integral driver for the frequency integral in the evolution equations */
 double integrate_over_nu(double zp, double local_x_e, double lower_int_limit, int FLAG);
 
-/* Returns the maximum redshift at which a Lyn transition contributes to Lya 
+/* Returns the maximum redshift at which a Lyn transition contributes to Lya
    flux at z */
 float zmax(float z, int n);
 
 /* Returns frequency of Lyman-n, in units of Lyman-alpha */
 double nu_n(int n);
 
-/* Returns recycling fraction (=fraction of photons converted into 
+/* Returns recycling fraction (=fraction of photons converted into
  * Lyalpha for Ly-n resonance */
 double frecycle(int n);
 
@@ -142,33 +142,33 @@ int init_heat()
         return -2;
     if( kappa_10_pH_float(1.0,1) < 0)
         return -3;
-    
+
     initialize_interp_arrays();
-    
+
     return 0;
 }
 
 int init_FcollTable(float zmin, float zmax)
 {
-    
+
     int i;
     double z_table;
-    
+
     zmin_1DTable = zmin;
     zmax_1DTable = 1.2*zmax;
-    
+
     zbin_width_1DTable = 0.1;
-    
+
     n_redshifts_1DTable = (int)ceil((zmax_1DTable - zmin_1DTable)/zbin_width_1DTable);
-    
+
     FgtrM_1DTable_linear = (double *)calloc(n_redshifts_1DTable,sizeof(double));
-    
+
     for(i=0;i<n_redshifts_1DTable;i++) {
         z_table = zmin_1DTable + zbin_width_1DTable*(double)i;
-        
+
         FgtrM_1DTable_linear[i] = log10(FgtrM(z_table, get_M_min_ion(z_table)));
     }
-    
+
     return 0;
 }
 
@@ -194,7 +194,7 @@ void destruct_heat()
 }
 
 
-/* Returns the maximum redshift at which a Lyn transition contributes to Lya 
+/* Returns the maximum redshift at which a Lyn transition contributes to Lya
    flux at z */
 float zmax(float z, int n){
   double num, denom;
@@ -215,7 +215,7 @@ double nu_n(int n)
 }
 
 
-/* Returns recycling fraction (=fraction of photons converted into 
+/* Returns recycling fraction (=fraction of photons converted into
  * Lyalpha for Ly-n resonance */
 double frecycle(int n)
 {
@@ -288,7 +288,7 @@ double frecycle(int n)
 }
 
 
-/* Reads in and constructs table of the piecewise power-law fits to Pop 2 and 
+/* Reads in and constructs table of the piecewise power-law fits to Pop 2 and
  * Pop 3 stellar spectra, from Barkana */
 double spectral_emissivity(double nu_norm, int flag)
 {
@@ -366,7 +366,7 @@ void evolveInt(float zp, float curr_delNL0[], double freq_int_heat[], double fre
     x_e = y[0];
     T = y[1];
     n_b = N_b0 * pow(1+zp, 3) * (1+curr_delNL0[0]*growth_factor_zp);
-    
+
     // First, let's do the trapazoidal integration over zpp
     dxheat_dt = 0;
     dxion_source_dt = 0;
@@ -383,7 +383,7 @@ void evolveInt(float zp, float curr_delNL0[], double freq_int_heat[], double fre
                 zpp = (zpp_edge[zpp_ct]+zpp_edge[zpp_ct-1])*0.5;
                 dzpp = zpp_edge[zpp_ct-1] - zpp_edge[zpp_ct];
             }
-            
+
             dfcoll = dfcoll_dz(zpp, sigma_Tmin[zpp_ct], curr_delNL0[zpp_ct], sigma_atR[zpp_ct]);
             dfcoll *= ST_over_PS[zpp_ct] * dzpp; // this is now a positive quantity
             zpp_integrand = dfcoll * (1+curr_delNL0[zpp_ct]*dicke(zpp)) * pow(1+zpp, -X_RAY_SPEC_INDEX);
@@ -394,7 +394,7 @@ void evolveInt(float zp, float curr_delNL0[], double freq_int_heat[], double fre
                 dstarlya_dt += dfcoll * (1+curr_delNL0[zpp_ct]*dicke(zpp)) * pow(1+zp,2)*(1+zpp) * sum_lyn[zpp_ct];
             }
         }
-        
+
         // add prefactors
         dxheat_dt *= const_zp_prefactor;
         dxion_source_dt *= const_zp_prefactor;
@@ -469,7 +469,7 @@ void evolveInt(float zp, float curr_delNL0[], double freq_int_heat[], double fre
 /*
   Evaluates the frequency integral in the Tx evolution equation
   photons starting from zpp arive at zp, with mean IGM electron
-  fraction of x_e (used to compute tau), and local electron 
+  fraction of x_e (used to compute tau), and local electron
   fraction local_x_e
   FLAG = 0 for heat integral
   FLAG = 1 for ionization integral
@@ -539,7 +539,7 @@ double integrate_over_nu(double zp, double local_x_e, double lower_int_limit, in
        double result, error;
        double rel_tol  = 0.01; //<- relative tolerance
        gsl_function F;
-       gsl_integration_workspace * w 
+       gsl_integration_workspace * w
 	 = gsl_integration_workspace_alloc (1000);
 
        if (DEBUG_ON){
@@ -628,9 +628,9 @@ double tauX_integrand(double zhat, void *params){
 double tauX(double nu, double x_e, double zp, double zpp, double HI_filling_factor_zp){
 
     double result, error, fcoll;
-    
+
     gsl_function F;
-    
+
     double rel_tol  = 0.005; //<- relative tolerance
 //    double rel_tol  = 0.01; //<- relative tolerance
     gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
@@ -671,39 +671,39 @@ double tauX(double nu, double x_e, double zp, double zpp, double HI_filling_fact
  Calculates the optical depth for a photon arriving at z = zp with frequency nu,
  emitted at z = zpp.
  The filling factor of neutral IGM at zp is HI_filling_factor_zp.
- 
+
  *** Brad Greig (22/11/2016) ***
  An approximation to evaluate this using the global averaged filling factor at that zp. Same
  approximation that uses the global averaged x_e
- 
+
  Used to speed up Ts.c and remove parameter dependence reducing the dimensionality of the required interpolation
  table in the new version of 21CMMC (including spin-temperature fluctuations).
- 
+
  */
 typedef struct{
     double nu_0, x_e, ion_eff;
 } tauX_params_approx;
 double tauX_integrand_approx(double zhat, void *params){
-    
+
     double n, drpropdz, nuhat, sigma_tilde, fcoll, HI_filling_factor_zhat;
-    
+
     int z_fcoll_int1,z_fcoll_int2;
     float z_fcoll_val1,z_fcoll_val2;
-    
+
     tauX_params_approx *p = (tauX_params_approx *) params;
-    
+
     drpropdz = C * dtdz(zhat);
     n = N_b0 * pow(1+zhat, 3);
     nuhat = p->nu_0 * (1+zhat);
-    
+
     z_fcoll_int1 = (int)floor(( zhat - zmin_1DTable )/zbin_width_1DTable);
     z_fcoll_int2 = z_fcoll_int1 + 1;
-    
+
     z_fcoll_val1 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int1;
     z_fcoll_val2 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int2;
-    
+
     fcoll = FgtrM_1DTable_linear[z_fcoll_int1] + ( zhat - z_fcoll_val1 )*( FgtrM_1DTable_linear[z_fcoll_int2] - FgtrM_1DTable_linear[z_fcoll_int1] )/( z_fcoll_val2 - z_fcoll_val1 );
-    
+
     fcoll = pow(10.,fcoll);
 //    fcoll = FgtrM(zhat, get_M_min_ion(zhat));
     if (fcoll < 1e-20)
@@ -711,25 +711,25 @@ double tauX_integrand_approx(double zhat, void *params){
     else
         HI_filling_factor_zhat = 1 - p->ion_eff * fcoll/(1.0 - x_e_ave); //simplification to use the <x_e> value at zp and not zhat.  should'nt matter much since the evolution in x_e_ave is slower than fcoll.  in principle should make an array to store past values of x_e_ave..
     if (HI_filling_factor_zhat < 1e-4) HI_filling_factor_zhat = 1e-4; //set a floor for post-reionization stability
-    
+
     sigma_tilde = species_weighted_x_ray_cross_section(nuhat, p->x_e);
     //  printf("in taux integrand, %e, %e, %e, %e, %e, %f, %e, %e\n", drpropdz * n * HI_filling_factor_zhat * sigma_tilde, drpropdz, n, HI_filling_factor_zhat, sigma_tilde, zhat, p->ion_eff, FgtrM(zhat, get_M_min_ion(zhat)));
     return drpropdz * n * HI_filling_factor_zhat * sigma_tilde;
 }
 double tauX_approx(double nu, double x_e, double zp, double zpp, double HI_filling_factor_zp){
-    
+
     double result, error, fcoll;
-    
+
     gsl_function F;
-    
+
     double rel_tol  = 0.005; //<- relative tolerance
     //    double rel_tol  = 0.01; //<- relative tolerance
     gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
     tauX_params_approx p;
-    
+
     int z_fcoll_int1,z_fcoll_int2;
     float z_fcoll_val1,z_fcoll_val2;
-    
+
     /*
      if (DEBUG_ON)
      printf("in taux, parameters are: %e, %e, %f, %f, %e\n", nu, x_e, zp, zpp, HI_filling_factor_zp);
@@ -737,32 +737,32 @@ double tauX_approx(double nu, double x_e, double zp, double zpp, double HI_filli
     F.function = &tauX_integrand_approx;
     p.nu_0 = nu/(1+zp);
     p.x_e = x_e;
-    
+
     // effective efficiency for the PS (not ST) mass function; quicker to compute...
     if (HI_filling_factor_zp > FRACT_FLOAT_ERR){
 //        fcoll = FgtrM(zp, M_MIN_at_zp);
 
         z_fcoll_int1 = (int)floor(( zp - zmin_1DTable )/zbin_width_1DTable);
         z_fcoll_int2 = z_fcoll_int1 + 1;
-        
+
         z_fcoll_val1 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int1;
         z_fcoll_val2 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int2;
-        
+
         fcoll = FgtrM_1DTable_linear[z_fcoll_int1] + ( zp - z_fcoll_val1 )*( FgtrM_1DTable_linear[z_fcoll_int2] - FgtrM_1DTable_linear[z_fcoll_int1] )/( z_fcoll_val2 - z_fcoll_val1 );
 
         fcoll = pow(10.,fcoll);
-        
+
         p.ion_eff = (1.0 - HI_filling_factor_zp) / fcoll * (1.0 - x_e_ave);
         PS_ION_EFF = p.ion_eff;
     }
     else
         p.ion_eff = PS_ION_EFF; // uses the previous one in post reionization regime
-    
+
     F.params = &p;
     gsl_integration_qag (&F, zpp, zp, 0, rel_tol,1000, GSL_INTEG_GAUSS15, w, &result, &error);
 //    gsl_integration_qag (&F, zpp, zp, 0, rel_tol,1000, GSL_INTEG_GAUSS61, w, &result, &error);
     gsl_integration_workspace_free (w);
-    
+
     /*
      if (DEBUG_ON)
      printf("returning from tauX, return value=%e\n", result);
@@ -775,14 +775,14 @@ double tauX_approx(double nu, double x_e, double zp, double zpp, double HI_filli
  Returns the frequency threshold where \tau_X = 1, given parameter values of
  electron fraction in the IGM outside of HII regions, x_e,
  recieved redshift, zp, and emitted redshift, zpp.
- 
+
  *** Brad Greig (22/11/2016) ***
  An approximation to evaluate this using the global averaged filling factor at that zp. Same
  approximation that uses the global averaged x_e
- 
+
  Used to speed up Ts.c and remove parameter dependence reducing the dimensionality of the required interpolation
  table in the new version of 21CMMC (including spin-temperature fluctuations).
- 
+
  */
 typedef struct{
     double x_e, zp, zpp, HI_filling_factor_zp;
@@ -792,7 +792,7 @@ double nu_tau_one_helper_approx(double nu, void * params){
     return tauX_approx(nu, p->x_e, p->zp, p->zpp, p->HI_filling_factor_zp) - 1;
 }
 double nu_tau_one_approx(double zp, double zpp, double x_e, double HI_filling_factor_zp){
-    
+
     int status, iter, max_iter;
     const gsl_root_fsolver_type * T;
     gsl_root_fsolver * s;
@@ -800,17 +800,17 @@ double nu_tau_one_approx(double zp, double zpp, double x_e, double HI_filling_fa
     double x_lo, x_hi, r=0;
     double relative_error = 0.02;
     nu_tau_one_params_approx p;
-    
+
     if (DEBUG_ON){
         printf("in nu tau one, called with parameters: zp=%f, zpp=%f, x_e=%e, HI_filling_at_zp=%e\n", zp, zpp, x_e, HI_filling_factor_zp);
     }
-    
+
     // check if too ionized
     if (x_e > 0.9999){
 //        fprintf(stderr,"Ts.c: WARNING: x_e value is too close to 1 for convergence in nu_tau_one\n");
         return -1;
     }
-    
+
     // select solver and allocate memory
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc(T); // non-derivative based Brent method
@@ -818,15 +818,15 @@ double nu_tau_one_approx(double zp, double zpp, double x_e, double HI_filling_fa
         fprintf(stderr, "Ts.c: Unable to allocate memory in function nu_tau_one!\n");
         return -1;
     }
-    
+
     //check if lower bound has null
     if (tauX_approx(HeI_NUIONIZATION, x_e, zp, zpp, HI_filling_factor_zp) < 1)
         return HeI_NUIONIZATION;
-    
+
     // set frequency boundary values
     x_lo= HeI_NUIONIZATION;
     x_hi = 1e6 * NU_over_EV;
-    
+
     // select function we wish to solve
     p.x_e = x_e;
     p.zp = zp;
@@ -835,7 +835,7 @@ double nu_tau_one_approx(double zp, double zpp, double x_e, double HI_filling_fa
     F.function = &nu_tau_one_helper_approx;
     F.params = &p;
     gsl_root_fsolver_set (s, &F, x_lo, x_hi);
-    
+
     // iterate until we guess close enough
     if (DEBUG_ON) printf ("%5s [%9s, %9s] %9s %9s\n", "iter", "lower", "upper", "root", "err(est)");
     iter = 0;
@@ -854,7 +854,7 @@ double nu_tau_one_approx(double zp, double zpp, double x_e, double HI_filling_fa
         }
     }
     while (status == GSL_CONTINUE && iter < max_iter);
-    
+
     // deallocate and return
     gsl_root_fsolver_free (s);
     if (DEBUG_ON) printf("Root found at %e eV", r/NU_over_EV);
@@ -867,7 +867,7 @@ double nu_tau_one_approx(double zp, double zpp, double x_e, double HI_filling_fa
 
 /*
   Returns the frequency threshold where \tau_X = 1, given parameter values of
-  electron fraction in the IGM outside of HII regions, x_e, 
+  electron fraction in the IGM outside of HII regions, x_e,
   recieved redshift, zp, and emitted redshift, zpp.
 */
 typedef struct{
@@ -904,11 +904,11 @@ double nu_tau_one(double zp, double zpp, double x_e, double HI_filling_factor_zp
         fprintf(stderr, "Ts.c: Unable to allocate memory in function nu_tau_one!\n");
         return -1;
     }
-    
+
     //check if lower bound has null
     if (tauX(HeI_NUIONIZATION, x_e, zp, zpp, HI_filling_factor_zp) < 1)
         return HeI_NUIONIZATION;
-    
+
     // set frequency boundary values
     x_lo= HeI_NUIONIZATION;
     x_hi = 1e6 * NU_over_EV;
@@ -1127,7 +1127,7 @@ float get_Ts_float(float z, float delta, float TK, float xe, float Jalpha){
     float Trad,xc,xa_tilde;
     float TS,TSold,TSinv;
     float Tceff;
-    
+
     Trad = T_cmb*(1.0+z);
     xc = xcoll_float(z,TK,delta,xe);
     if (Jalpha > 1.0e-20) { // Must use WF effect
@@ -1142,7 +1142,7 @@ float get_Ts_float(float z, float delta, float TK, float xe, float Jalpha){
     } else { // Collisions only
         TS = (1.0 + xc)/(1.0/Trad + xc/TK);
     }
-    
+
     return TS;
 }
 
@@ -1159,7 +1159,7 @@ float xcoll_HI_float(float z, float TK, float delta, float xe)
 {
     float krate,nH,Trad;
     float xcoll;
-    
+
     Trad = T_cmb*(1.0+z);
     nH = (1.0-xe)*No*pow(1.0+z,3.0)*(1.0+delta);
     krate = kappa_10_float(TK,0);
@@ -1196,7 +1196,7 @@ float xcoll_elec_float(float z, float TK, float delta, float xe)
 {
     float krate,ne,Trad;
     float xcoll;
-    
+
     Trad = T_cmb*(1.0+z);
     ne = xe*N_b0*pow(1.0+z,3.0)*(1.0+delta);
     krate = kappa_10_elec_float(TK,0);
@@ -1220,7 +1220,7 @@ float xcoll_prot_float(float z, float TK, float delta, float xe)
 {
     float krate,np,Trad;
     float xcoll;
-    
+
     Trad = T_cmb*(1.0+z);
     np = xe*No*pow(1.0+z,3.0)*(1.0+delta);
     krate = kappa_10_pH_float(TK,0);
@@ -1250,7 +1250,7 @@ double kappa_10(double TK, int flag)
     tkin[9] = 30.0; kap[9] = 3.67e-11;
     tkin[10] = 40.0; kap[10] = 5.38e-11;
     tkin[11] = 50.0; kap[11] = 6.86e-11;
-    tkin[12] = 60.0; kap[12] = 8.14e-11; 
+    tkin[12] = 60.0; kap[12] = 8.14e-11;
     tkin[13] = 70.0; kap[13] = 9.25e-11;
     tkin[14] = 80.0; kap[14] = 1.02e-10;
     tkin[15] = 90.0; kap[15] = 1.11e-10;
@@ -1277,7 +1277,7 @@ double kappa_10(double TK, int flag)
     spline  = gsl_spline_alloc (gsl_interp_cspline, KAPPA_10_NPTS);
     gsl_spline_init(spline, tkin, kap, KAPPA_10_NPTS);
     return 0;
-  } 
+  }
 
   if (flag == 2) { /* Clear memory */
     gsl_spline_free (spline);
@@ -1287,7 +1287,7 @@ double kappa_10(double TK, int flag)
 
   if (log(TK) < tkin[0]) { /* Below 1 K, just use that value */
     ans = kap[0];
-  } else if (log(TK) > tkin[KAPPA_10_NPTS-1]) { 
+  } else if (log(TK) > tkin[KAPPA_10_NPTS-1]) {
     /* Power law extrapolation */
     ans = log(exp(kap[KAPPA_10_NPTS-1])*pow(TK/exp(tkin[KAPPA_10_NPTS-1]),0.381));
   } else { /* Do spline */
@@ -1300,16 +1300,16 @@ double kappa_10(double TK, int flag)
 
 double kappa_10_float(double TK, int flag)
 {
-    
+
     static double tkin_spline[KAPPA_10_NPTS_Spline], kap_spline[KAPPA_10_NPTS_Spline];
     double ans;
     int tkin_spline_int;
-    
+
     if (flag == 1) {
-    
+
         BinWidth_10 = 0.317597943861;
         inv_BinWidth_10 = 1./0.317597943861;
-        
+
         tkin_spline[0] = 0.0; kap_spline[0] = -29.6115227098;
         tkin_spline[1] = 0.317597943861; kap_spline[1] = -29.6228184691;
         tkin_spline[2] = 0.635195887722; kap_spline[2] = -29.5917673123;
@@ -1340,24 +1340,24 @@ double kappa_10_float(double TK, int flag)
         tkin_spline[27] = 8.57514448425; kap_spline[27] = -21.2067614838;
         tkin_spline[28] = 8.89274242811; kap_spline[28] = -21.0835560288;
         tkin_spline[29] = 9.21034037198; kap_spline[29] = -20.9627928675;
-        
+
     }
-    
+
     TK = log(TK);
-    
+
     if (TK < tkin_spline[0]) { // Below 1 K, just use that value
         ans = kap_spline[0];
     } else if (TK > tkin_spline[KAPPA_10_NPTS_Spline-1]) {
         // Power law extrapolation
         ans = log(exp(kap_spline[KAPPA_10_NPTS_Spline-1])*pow(exp(TK)/exp(tkin_spline[KAPPA_10_NPTS_Spline-1]),0.381));
     } else { // Do spline
-        
+
 //        tkin_spline_int = (int)floor((TK - tkin_spline[0])/BinWidth);
         tkin_spline_int = (int)floor((TK - tkin_spline[0])*inv_BinWidth_10);
-        
+
 //        tkin_spline_gradient1 = tkin_spline[0] + BinWidth*(float)tkin_spline_int;
 //        tkin_spline_gradient2 = tkin_spline[0] + BinWidth*(float)(tkin_spline_int + 1);
-        
+
 //        ans = kap_spline[tkin_spline_int] + ( TK - tkin_spline_gradient1 )*( kap_spline[tkin_spline_int+1] - kap_spline[tkin_spline_int] )/( tkin_spline_gradient2 - tkin_spline_gradient1 );
         ans = kap_spline[tkin_spline_int] + ( TK - (tkin_spline[0] + BinWidth_10*(float)tkin_spline_int) )*( kap_spline[tkin_spline_int+1] - kap_spline[tkin_spline_int] )*inv_BinWidth_10;
     }
@@ -1382,7 +1382,7 @@ double kappa_10_elec(double T, int flag)
   if (flag == 1) {
     if (!(F=fopen(KAPPA_EH_FILENAME, "r"))){
       fprintf(stderr, "Unable to open the kappa_10^eH file at %s\nAborting\n", KAPPA_EH_FILENAME);
-      fprintf(LOG, "Unable to open the kappa_10^eH file at %s\nAborting\n", KAPPA_EH_FILENAME);      
+      fprintf(LOG, "Unable to open the kappa_10^eH file at %s\nAborting\n", KAPPA_EH_FILENAME);
       return 0;
     }
 
@@ -1416,11 +1416,11 @@ double kappa_10_elec(double T, int flag)
   if (T < TK[0]) { /* Use TK=1 K value if called at lower temperature */
     ans = kappa[0];
   }
-  else if (T > TK[KAPPA_10_elec_NPTS-1]) { 
+  else if (T > TK[KAPPA_10_elec_NPTS-1]) {
     /* Power law extrapolation */
-    ans  = kappa[KAPPA_10_elec_NPTS-1] + 
-      ((kappa[KAPPA_10_elec_NPTS-1] - kappa[KAPPA_10_elec_NPTS-2]) / 
-      (TK[KAPPA_10_elec_NPTS-1] - TK[KAPPA_10_elec_NPTS-2]) * 
+    ans  = kappa[KAPPA_10_elec_NPTS-1] +
+      ((kappa[KAPPA_10_elec_NPTS-1] - kappa[KAPPA_10_elec_NPTS-2]) /
+      (TK[KAPPA_10_elec_NPTS-1] - TK[KAPPA_10_elec_NPTS-2]) *
        (T-TK[KAPPA_10_elec_NPTS-1]));
   }
   else { /* Do spline */
@@ -1431,16 +1431,16 @@ double kappa_10_elec(double T, int flag)
 
 double kappa_10_elec_float(double T, int flag)
 {
-    
+
     static double TK_spline[KAPPA_10_elec_NPTS_Spline], kappa_spline[KAPPA_10_elec_NPTS_Spline];
     double ans;
     int TK_spline_int;
-    
+
     if (flag == 1) {
 
         BinWidth_elec = 0.396997429827;
         inv_BinWidth_elec = 1./0.396997429827;
-        
+
         TK_spline[0] = 0.0; kappa_spline[0] = -22.1549007191;
         TK_spline[1] = 0.396997429827; kappa_spline[1] = -21.9576919899;
         TK_spline[2] = 0.793994859653; kappa_spline[2] = -21.760758435;
@@ -1472,9 +1472,9 @@ double kappa_10_elec_float(double T, int flag)
         TK_spline[28] = 11.1159280351; kappa_spline[28] = -19.0813436512;
         TK_spline[29] = 11.512925465; kappa_spline[29] = -19.408859606;
     }
-    
+
     T = log(T);
-    
+
     if (T < TK_spline[0]) { // Below 1 K, just use that value
         ans = kappa_spline[0];
     } else if (T > TK_spline[KAPPA_10_elec_NPTS_Spline-1]) {
@@ -1482,13 +1482,13 @@ double kappa_10_elec_float(double T, int flag)
         ans  = kappa_spline[KAPPA_10_elec_NPTS_Spline-1] + ((kappa_spline[KAPPA_10_elec_NPTS_Spline-1] - kappa_spline[KAPPA_10_elec_NPTS_Spline-2]) / (TK_spline[KAPPA_10_elec_NPTS_Spline-1] - TK_spline[KAPPA_10_elec_NPTS_Spline-2]) * (T-TK_spline[KAPPA_10_elec_NPTS_Spline-1]));
 
     } else { // Do spline
-        
+
 //        TK_spline_int = (int)floor((T - TK_spline[0])/BinWidth);
         TK_spline_int = (int)floor((T - TK_spline[0])*inv_BinWidth_elec);
-        
+
 //        TK_spline_gradient1 = TK_spline[0] + BinWidth*(float)TK_spline_int;
 //        TK_spline_gradient2 = TK_spline[0] + BinWidth*(float)(TK_spline_int + 1);
-        
+
 //        ans = kappa_spline[TK_spline_int] + ( T - TK_spline_gradient1 )*( kappa_spline[TK_spline_int+1] - kappa_spline[TK_spline_int] )/( TK_spline_gradient2 - TK_spline_gradient1 );
         ans = kappa_spline[TK_spline_int] + ( T - ( TK_spline[0] + BinWidth_elec*(float)TK_spline_int ) )*( kappa_spline[TK_spline_int+1] - kappa_spline[TK_spline_int] )*inv_BinWidth_elec;
     }
@@ -1513,7 +1513,7 @@ double kappa_10_pH(double T, int flag)
   if (flag == 1) {
     if (!(F=fopen(KAPPA_PH_FILENAME, "r"))){
       fprintf(stderr, "Unable to open the kappa_10^pH file at %s\nAborting\n", KAPPA_PH_FILENAME);
-      fprintf(LOG, "Unable to open the kappa_10^pH file at %s\nAborting\n", KAPPA_PH_FILENAME);      
+      fprintf(LOG, "Unable to open the kappa_10^pH file at %s\nAborting\n", KAPPA_PH_FILENAME);
       return 0;
     }
 
@@ -1549,12 +1549,12 @@ double kappa_10_pH(double T, int flag)
   if (T < TK[0]){ /* Use TK=1 K value if called at lower temperature */
     ans = kappa[0];
   }
-  else if (T > TK[KAPPA_10_pH_NPTS-1]) { 
+  else if (T > TK[KAPPA_10_pH_NPTS-1]) {
     /* Power law extrapolation */
 //      printf("extrapolate\n");
       ans  = kappa[KAPPA_10_pH_NPTS-1] +
-      ((kappa[KAPPA_10_pH_NPTS-1] - kappa[KAPPA_10_pH_NPTS-2]) / 
-      (TK[KAPPA_10_pH_NPTS-1] - TK[KAPPA_10_pH_NPTS-2]) * 
+      ((kappa[KAPPA_10_pH_NPTS-1] - kappa[KAPPA_10_pH_NPTS-2]) /
+      (TK[KAPPA_10_pH_NPTS-1] - TK[KAPPA_10_pH_NPTS-2]) *
        (T-TK[KAPPA_10_pH_NPTS-1]));
   } else { /* Do spline */
 //      printf("spline\n");
@@ -1569,14 +1569,14 @@ double kappa_10_pH_float(double T, int flag)
     static double TK_spline[KAPPA_10_pH_NPTS_Spline], kappa_spline[KAPPA_10_pH_NPTS_Spline];
     double ans;
     int TK_spline_int;
-    
+
 //    BinWidth = 0.341499570777;
-    
+
     if (flag == 1) {
-        
+
         BinWidth_pH = 0.341499570777;
         inv_BinWidth_pH = 1./0.341499570777;
-        
+
         TK_spline[0] = 0.0; kappa_spline[0] = -21.6395565688;
         TK_spline[1] = 0.341499570777; kappa_spline[1] = -21.5641675629;
         TK_spline[2] = 0.682999141554; kappa_spline[2] = -21.5225112028;
@@ -1608,9 +1608,9 @@ double kappa_10_pH_float(double T, int flag)
         TK_spline[28] = 9.56198798176; kappa_spline[28] = -20.0629513946;
         TK_spline[29] = 9.90348755254; kappa_spline[29] = -19.9343540344;
     }
-    
+
     T = log(T);
-    
+
     if (T < TK_spline[0]) { // Below 1 K, just use that value
         ans = kappa_spline[0];
     } else if (T > TK_spline[KAPPA_10_pH_NPTS_Spline-1]) {
@@ -1618,12 +1618,12 @@ double kappa_10_pH_float(double T, int flag)
         ans  = kappa_spline[KAPPA_10_pH_NPTS_Spline-1] + ((kappa_spline[KAPPA_10_pH_NPTS_Spline-1] - kappa_spline[KAPPA_10_pH_NPTS_Spline-2]) / (TK_spline[KAPPA_10_pH_NPTS_Spline-1] - TK_spline[KAPPA_10_pH_NPTS_Spline-2]) * (T-TK_spline[KAPPA_10_pH_NPTS_Spline-1]));
         //        ans = log(exp(kappa_spline[KAPPA_10_elec_NPTS_Spline-1])*pow(T/exp(TK_spline[KAPPA_10_elec_NPTS_Spline-1]),0.381));
     } else { // Do spline
-        
+
         TK_spline_int = (int)floor((T - TK_spline[0])*inv_BinWidth_pH);
-        
+
 //        TK_spline_gradient1 = TK_spline[0] + BinWidth*(double)TK_spline_int;
 //        TK_spline_gradient2 = TK_spline[0] + BinWidth*(double)(TK_spline_int + 1);
-        
+
 //        ans = kappa_spline[TK_spline_int] + ( T - TK_spline_gradient1 )*( kappa_spline[TK_spline_int+1] - kappa_spline[TK_spline_int] )/( TK_spline_gradient2 - TK_spline_gradient1 );
           ans = kappa_spline[TK_spline_int] + ( T - (TK_spline[0] + BinWidth_pH*(double)TK_spline_int))*( kappa_spline[TK_spline_int+1] - kappa_spline[TK_spline_int] )*inv_BinWidth_pH;
     }
@@ -1650,7 +1650,7 @@ double xalpha_tilde(double z, double Jalpha, double TK, double TS,
 float xalpha_tilde_float(float z, float Jalpha, float TK, float TS,
                     float delta, float xe){
     float tgp,Stilde,x;
-    
+
     tgp = taugp(z,delta,xe);
     Stilde = Salpha_tilde_float(1./TK,1./TS,tgp);
     x = 1.66e11/(1.0+z)*Stilde*Jalpha;
@@ -1676,7 +1676,7 @@ float Salpha_tilde_float(float TK, float TS, float tauGP)
 {
     float xi;
     float ans;
-    
+
     xi = pow(1.0e-7*tauGP*TK*TK, 1.0/3.0);
     ans = 1.0 - 0.0631789*TK + 0.115995*TK*TK - 0.401403*TS*TK;
     ans += 0.336463*TS*TK*TK;
@@ -1695,7 +1695,7 @@ double Tc_eff(double TK, double TS)
 float Tc_eff_float(float TK, float TS)
 {
     float ans;
-    
+
     ans = 1.0/(TK + 0.405535*TK*(TS - TK));
     return ans;
 }

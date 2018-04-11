@@ -1,7 +1,7 @@
 #ifndef _FILTER_
 #define _FILTER_
 
-#include "../Parameter_files/INIT_PARAMS.H"
+#include "Parameter_files/INIT_PARAMS.H"
 
 /*
   Function FILTER filters the k-space box, <box>, using filter type
@@ -23,7 +23,7 @@ void filter(fftwf_complex *box, int filter_type, float R){
 #pragma omp parallel shared(box, filter_type, R) private(k_x, k_y, k_z, k_mag, kR, n_x, n_z, n_y)
 {
 
-#pragma omp for 
+#pragma omp for
   for (n_x=0; n_x<DIM; n_x++){
     if (n_x>MIDDLE) {k_x =(n_x-DIM) * DELTA_K;}
     else {k_x = n_x * DELTA_K;}
@@ -32,9 +32,9 @@ void filter(fftwf_complex *box, int filter_type, float R){
       if (n_y>MIDDLE) {k_y =(n_y-DIM) * DELTA_K;}
       else {k_y = n_y * DELTA_K;}
 
-      for (n_z=0; n_z<=MIDDLE; n_z++){ 
+      for (n_z=0; n_z<=MIDDLE; n_z++){
 	k_z = n_z * DELTA_K;
-	
+
 	k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
 
 	kR = k_mag*R; // real space top-hat
@@ -60,7 +60,7 @@ void filter(fftwf_complex *box, int filter_type, float R){
       }
     }
   } // end looping through k box
-  
+
 }
   return;
 }

@@ -1,6 +1,4 @@
-import pylab as P
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
@@ -13,7 +11,7 @@ plt.register_cmap(cmap=EoR_color)
 
 
 def plot_global_data(lightcone, cmap=None, fig=None, ax = None,
-                	 min_val = -250, max_val = 50.):
+                     min_val = -250, max_val = 50.):
     if cmap is None:
         cmap = EoR_color
 
@@ -32,20 +30,28 @@ def plot_global_data(lightcone, cmap=None, fig=None, ax = None,
     ax[1].axis([z[0], z[-1], min_val, max_val])
 
     if len(z) < 10:
-        ax.plot(z, lightcone.average_Tb, 'ko')
+        ax[1].plot(z, lightcone.average_Tb, 'ko')
     else:
-        ax.plot(z, lightcone.average_Tb)
+        ax[1].plot(z, lightcone.average_Tb)
 
     return fig, ax
 
 
 def plot_power_spec_1D(lightcone,fig=None, ax = None, PSmin = 0.01,PSmax = 100):
     if fig is None:
-        fig, ax = plt.subplots(np.ceil(np.sqrt(lightcone.n_ps)),np.ceil(np.sqrt(lightcone.n_ps)), figsize=(12, 8.9),
-                               subplot_kw={"xscale":'log', "yscale":'log'})
+        fig, ax = plt.subplots(
+            int(np.ceil(np.sqrt(lightcone.n_ps))),
+            int(np.ceil(np.sqrt(lightcone.n_ps))),
+            figsize=(12, 8.9),
+            subplot_kw={"xscale":'log', "yscale":'log', "ylim":(PSmin, PSmax)},
+            squeeze=False,
+            sharey = True,
+            sharex = True
+        )
 
+    print(lightcone.k, lightcone.power_spectrum)
     for i,axi in enumerate(ax.flatten()):
-        axi.axis([lightcone.k[0], lightcone.k[-1], PSmin, PSmax])
+        #axi.axis([lightcone.k[0], lightcone.k[-1], PSmin, PSmax])
         axi.plot(lightcone.k, lightcone.power_spectrum[i])
 
     return fig, ax
@@ -59,10 +65,11 @@ def plot_lightcone_slice(lightcone, slice_index=None, fig=None, ax=None, min_val
         cmap = EoR_color
 
     # The random voxel used for creating the light-cone slice
-    RAND_DIR = lightcone.HII_DIM//2
+    if slice_index is None:
+        slice_index = lightcone.HII_DIM//2
 
     # Array to hold the light-cone slice
-    SliceData = lightcone.lightcone_box[RAND_DIR]
+    SliceData = lightcone.lightcone_box[slice_index]
 
     X_Vals = np.zeros(lightcone.HII_DIM)
     LC_Vals = np.zeros(lightcone.ncells_los)

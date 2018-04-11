@@ -837,7 +837,7 @@ double init_ps(){
   R_CUTOFF = 0.201*pow((OMm-OMb)*hlittle*hlittle/0.15, 0.15)*pow(g_x/1.5, -0.29)*pow(M_WDM, -1.15);
 
 //  fprintf(stderr, "For M_DM = %.2e keV, R_CUTOFF is: %.2e comoving Mpc\n", M_WDM, R_CUTOFF);
-  if (!P_CUTOFF)
+//  if (!P_CUTOFF)
 //    fprintf(stderr, "But you have selected CDM, so this is ignored\n");
 
   omhh = OMm*hlittle*hlittle;
@@ -861,6 +861,7 @@ double init_ps(){
   upper_limit = kend;//log(kend);
 
   F.function = &dsigma_dk;
+
 
   gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol,
 		       1000, GSL_INTEG_GAUSS61, w, &result, &error); 
