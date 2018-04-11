@@ -31,6 +31,21 @@ class BaseStructure(Structure):
         super().__init__(**values)  # Python 3 syntax
 
 
+class ReturnParams(Structure):
+    """
+    Descriptive parameters of the return data from drive_21cmMC.
+    """
+    _fields_ = [
+        ("HII_DIM", c_int ),
+        ("BOX_LEN", c_float),
+        ("nbins_ps", c_int ),
+        ("ncells_los", c_int ),
+        ("n_redshifts", c_int ),
+        ("n_ps", c_int ),
+        ("lightcone", c_int ),
+    ]
+
+
 class DriveReturn(Structure):
     _fields_ = [
         ('Sampled_z', POINTER(c_float)),
@@ -39,7 +54,7 @@ class DriveReturn(Structure):
         ('PS_k', POINTER(c_float)),
         ('PS', POINTER(c_float)),
         ('LCBox', POINTER(c_float)),
-        ('Variables', POINTER(c_float))
+        ('Parameters', ReturnParams)
     ]
 
 
@@ -331,24 +346,19 @@ class LightCone:
         raw_return : Point class
             The raw returned structure.
         """
-        self.HII_DIM = int(raw_return.Variables[0])
-        self.box_length = raw_return.Variables[1]
-        self.nbins_ps = int(raw_return.Variables[2])
-        self.ncells_los = int(raw_return.Variables[3])
-        self.n_redshifts = int(raw_return.Variables[4])
-        self.n_ps = int(raw_return.Variables[5])
-        self.lightcone = bool(raw_return.Variables[6])
+        self.params = raw_return.Parameters
+        self.is_lightcone = self.params.lightcone
 
-        self.redshifts = np.zeros(self.n_redshifts)
-        self.average_nf = np.zeros(self.n_redshifts)
-        self.average_Tb = np.zeros(self.n_redshifts)
+        self.redshifts = np.ctypeslib.as_array(raw_return.Sampled_z, shape=(self.params.n_redshifts,))
+        self.average_nf = np.ctypeslib.as_array(raw_return.GlobalNF, shape=(self.params.n_redshifts,))
+        self.average_Tb = np.ctypeslib.as_array(raw_return.GlobalTb, shape=(self.params.n_redshifts,))
 
-        for i in range(self.n_redshifts):
-            self.redshifts[i] = raw_return.Sampled_z[i]
-            self.average_nf[i] = raw_return.GlobalNF[i]
-            self.average_Tb[i] = raw_return.GlobalTb[i]
+        # for i in range(self.n_redshifts):
+        #     self.redshifts[i] = raw_return.Sampled_z[i]
+        #     self.average_nf[i] = raw_return.GlobalNF[i]
+        #     self.average_Tb[i] = raw_return.GlobalTb[i]
 
-        if self.lightcone:
+        if self.is_lightcone:
             self.redshifts = self.redshifts[::-1]
             self.average_nf = self.average_nf[::-1]
             self.average_Tb = self.average_Tb[::-1]
@@ -357,21 +367,24 @@ class LightCone:
         else:
             k_offset = 1
 
-        self.power_spectrum = np.zeros((self.n_ps, self.nbins_ps - k_offset))
-        self.k = np.zeros(self.nbins_ps - k_offset)
+        self.power_spectrum = np.zeros((self.params.n_ps, self.params.nbins_ps - k_offset))
+        self.k = np.zeros(self.params.nbins_ps - k_offset)
 
-        for i in range(self.n_ps):
-            for j in range(self.nbins_ps - k_offset):
-                self.power_spectrum[i][j] = (raw_return.PS[(j + k_offset) + self.nbins_ps * i])
+        for i in range(self.params.n_ps):
+            for j in range(self.params.nbins_ps - k_offset):
+                self.power_spectrum[i][j] = (raw_return.PS[(j + k_offset) + self.params.nbins_ps * i])
                 if i == 0:
-                    self.k[j] = (raw_return.PS_k[(j + k_offset) + self.nbins_ps * 0])
+                    self.k[j] = (raw_return.PS_k[(j + k_offset) + self.params.nbins_ps * 0])
 
-        self.lightcone_box = np.zeros((self.HII_DIM, self.HII_DIM, self.ncells_los))
-        # TODO: this must be much slower than just doing a numpy array
-        for k in range(self.ncells_los):
-            for j in range(self.HII_DIM):
-                for i in range(self.HII_DIM):
-                    self.lightcone_box[i, j, k] = raw_return.LCBox[k + self.ncells_los * (j + self.HII_DIM * i)]
+        self.lightcone_box = np.ctypeslib.as_array(
+            raw_return.LCBox,
+            shape=(self.params.HII_DIM, self.params.HII_DIM, self.params.ncells_los)
+        )
+        # # TODO: this must be much slower than just doing a numpy array
+        # for k in range(self.ncells_los):
+        #     for j in range(self.HII_DIM):
+        #         for i in range(self.HII_DIM):
+        #             self.lightcone_box[i, j, k] = raw_return.LCBox[k + self.ncells_los * (j + self.HII_DIM * i)]
 
 
 boxdir = os.path.expanduser(os.path.join("~", ".py21cmmc", "Boxes"))

@@ -40,8 +40,8 @@ def plot_global_data(lightcone, cmap=None, fig=None, ax = None,
 def plot_power_spec_1D(lightcone,fig=None, ax = None, PSmin = 0.01,PSmax = 100):
     if fig is None:
         fig, ax = plt.subplots(
-            int(np.ceil(np.sqrt(lightcone.n_ps))),
-            int(np.ceil(np.sqrt(lightcone.n_ps))),
+            int(np.ceil(np.sqrt(lightcone.params.n_ps))),
+            int(np.ceil(np.sqrt(lightcone.params.n_ps))),
             figsize=(12, 8.9),
             subplot_kw={"xscale":'log', "yscale":'log', "ylim":(PSmin, PSmax)},
             squeeze=False,
@@ -58,7 +58,7 @@ def plot_power_spec_1D(lightcone,fig=None, ax = None, PSmin = 0.01,PSmax = 100):
 
 
 def plot_lightcone_slice(lightcone, slice_index=None, fig=None, ax=None, min_val=-250., max_val=50.0, cmap=None):
-    if not lightcone.lightcone:
+    if not lightcone.is_lightcone:
         raise ValueError("This 21cmFAST output is not a lightcone. Aborting.")
 
     if cmap is None:
@@ -66,7 +66,7 @@ def plot_lightcone_slice(lightcone, slice_index=None, fig=None, ax=None, min_val
 
     # The random voxel used for creating the light-cone slice
     if slice_index is None:
-        slice_index = lightcone.HII_DIM//2
+        slice_index = lightcone.params.HII_DIM//2
 
     # Array to hold the light-cone slice
     SliceData = lightcone.lightcone_box[slice_index]
@@ -75,12 +75,12 @@ def plot_lightcone_slice(lightcone, slice_index=None, fig=None, ax=None, min_val
     LC_Vals = np.zeros(lightcone.ncells_los)
 
     #TODO: should be able to use linspace
-    for ii in range(lightcone.HII_DIM):
-        X_Vals[ii] = (0.0 + lightcone.box_length * (float(ii) + 0.5) / ((lightcone.HII_DIM - 1)))
+    for ii in range(lightcone.params.HII_DIM):
+        X_Vals[ii] = (0.0 + lightcone.params.BOX_LEN * (float(ii) + 0.5) / ((lightcone.params.HII_DIM - 1)))
 
 
     # Indexing for the voxels along the line-of-sight (should be redshift, could return that data too...)
-    for ii in range(lightcone.ncells_los):
+    for ii in range(lightcone.params.ncells_los):
         LC_Vals[ii] = ii
 
     if fig is None:

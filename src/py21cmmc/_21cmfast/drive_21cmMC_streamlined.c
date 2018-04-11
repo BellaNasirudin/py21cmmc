@@ -51,8 +51,8 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
 void adj_complex_conj();
 void ComputeInitialConditions();
 void ComputePerturbField(float REDSHIFT_SAMPLE);
-void GeneratePS(int CO_EVAL, double AverageTb);
 
+void GeneratePS(int CO_EVAL, double AverageTb);
 void ReadFcollTable();
 
 void destroy_21cmMC_Ts_arrays();
@@ -154,6 +154,15 @@ struct BoxDimStruct{
     float BOX_LEN;
 };
 
+struct ReturnParams{
+    int HII_DIM;         // Resolution of low-res box
+    float BOX_LEN;       // Size of box in Mpc
+    int NUM_BINS;        // Number of bins in the PS
+    int total_slice_ct;  // Total number of slices (?)
+    int n_redshifts;     // Number of redshifts
+    int n_ps;            // Number of power spectra calculated
+    int lightcone;       // Whether a lightcone was generated.
+};
 struct ReturnData{
     float *RedshiftData;
     float *NeutralFractionData;
@@ -161,10 +170,8 @@ struct ReturnData{
     float *PSData_k;
     float *PSData;
     float *LCBox;
-    float *RandomVariables;
+    struct ReturnParams Parameters;
 };
-
-
 
 struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDim, struct FlagOptionStruct FlagOptions,
                                struct AstroParamStruct AstrophysicalParams, struct CosmoParamStruct CosmologicalParams) {
@@ -172,20 +179,18 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDi
     // The standard build of 21cmFAST requires openmp for the FFTs. 21CMMC does not, however, for some computing architectures, I found it important to include this
     omp_set_num_threads(1);
 
-    DataToBeReturned.RandomVariables = calloc(7,sizeof(float));
-
     // Need to set these global variables.
     HII_DIM = BoxDim.HII_DIM;
     DIM = BoxDim.DIM;
     BOX_LEN = BoxDim.BOX_LEN;
 
 
-    DataToBeReturned.RandomVariables[0] = (float)BoxDim.HII_DIM;
-    DataToBeReturned.RandomVariables[1] = BoxDim.BOX_LEN;
+    DataToBeReturned.Parameters.HII_DIM = BoxDim.HII_DIM;
+    DataToBeReturned.Parameters.BOX_LEN = BoxDim.BOX_LEN;
 
     init_21cmMC_HII_arrays();
 
-    DataToBeReturned.RandomVariables[2] = (float)NUM_BINS;
+    DataToBeReturned.Parameters.NUM_BINS = NUM_BINS;
 
     destroy_21cmMC_HII_arrays(1);
 
@@ -584,15 +589,20 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDi
     }
     Stored_LOS_direction_state_2 = LOS_direction;
 
-    DataToBeReturned.RandomVariables[3] = (float)total_slice_ct;
-    DataToBeReturned.RandomVariables[4] = (float)N_USER_REDSHIFT;
+    int total_slice_ct;  // Total number of slices (?)
+    int n_redshifts;     // Number of redshifts
+    int n_ps;            // Number of power spectra calculated
+    int lightcone;       // Whether a lightcone was generated.
+
+    DataToBeReturned.Parameters.total_slice_ct = total_slice_ct;
+    DataToBeReturned.Parameters.n_redshifts = N_USER_REDSHIFT;
     if(USE_LIGHTCONE) {
-        DataToBeReturned.RandomVariables[5] = (float)total_num_boxes;
+        DataToBeReturned.Parameters.n_ps = total_num_boxes;
     }
     else {
-        DataToBeReturned.RandomVariables[5] = (float)N_USER_REDSHIFT;
+        DataToBeReturned.Parameters.n_ps = N_USER_REDSHIFT;
     }
-    DataToBeReturned.RandomVariables[6] = (float)USE_LIGHTCONE;
+    DataToBeReturned.Parameters.lightcone = USE_LIGHTCONE;
 
     DataToBeReturned.RedshiftData = calloc(N_USER_REDSHIFT,sizeof(float));
     DataToBeReturned.NeutralFractionData = calloc(N_USER_REDSHIFT,sizeof(float));
@@ -1623,7 +1633,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     fabs_dtdz = fabs(dtdz(REDSHIFT_SAMPLE));
     t_ast = t_STAR * t_hubble(REDSHIFT_SAMPLE);
     growth_factor_dz = dicke(REDSHIFT_SAMPLE-dz);
-    
+
     // if USE_FCOLL_IONISATION_TABLE == 1, we are only calculating the ionisation fraction within a smaller volume (however much is required to linearly interpolate the fields for the light-cone).
     // To know which slices to keep and discard, need to store the relevant indices etc. for the given redshift. The below code does this.
     if(USE_FCOLL_IONISATION_TABLE) {
@@ -1708,8 +1718,6 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
             }
         }
     }
-    printf("made it this far %d %d %d\n", DIM, D, TOT_FFT_NUM_PIXELS);
-    sleep(2);
     /////////////////////////////////   BEGIN INITIALIZATION   //////////////////////////////////
 
 
