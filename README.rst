@@ -134,9 +134,9 @@ TODO (Before Release/Merging with master)
 - change all input parameters for driver to actually just access the structs.
 - functions in drive_21cmmc_streamlined need to use less globals, so they can be called individually.
 - users should be able to just call init, or perturb_field etc. from command line.
-- the places where Boxes are accessed by default in C code needs to be changed.
 - really need to make stuff like BOX_LEN variable so the user doesn't have to recompile!
 - Add all the MCMC stuff.
+- Change the parameter names python-side? ALL-CAPS names are a bit unpythonic?
 - Documentation
 - Tests
 - All the other little bits that polish the package off.

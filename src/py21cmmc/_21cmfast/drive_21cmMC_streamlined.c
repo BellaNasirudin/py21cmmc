@@ -148,6 +148,12 @@ struct CosmoParamStruct{
 
 };
 
+struct BoxDimStruct{
+    int HII_DIM;
+    int DIM;
+    float BOX_LEN;
+};
+
 struct ReturnData{
     float *RedshiftData;
     float *NeutralFractionData;
@@ -160,7 +166,7 @@ struct ReturnData{
 
 
 
-struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct FlagOptionStruct FlagOptions,
+struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDim, struct FlagOptionStruct FlagOptions,
                                struct AstroParamStruct AstrophysicalParams, struct CosmoParamStruct CosmologicalParams) {
 
     // The standard build of 21cmFAST requires openmp for the FFTs. 21CMMC does not, however, for some computing architectures, I found it important to include this
@@ -168,8 +174,14 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct FlagOptionStruct F
 
     DataToBeReturned.RandomVariables = calloc(7,sizeof(float));
 
-    DataToBeReturned.RandomVariables[0] = (float)HII_DIM;
-    DataToBeReturned.RandomVariables[1] = (float)BOX_LEN;
+    // Need to set these global variables.
+    HII_DIM = BoxDim.HII_DIM;
+    DIM = BoxDim.DIM;
+    BOX_LEN = BoxDim.BOX_LEN;
+
+
+    DataToBeReturned.RandomVariables[0] = (float)BoxDim.HII_DIM;
+    DataToBeReturned.RandomVariables[1] = BoxDim.BOX_LEN;
 
     init_21cmMC_HII_arrays();
 
@@ -180,6 +192,7 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct FlagOptionStruct F
     char filename[500];
     char dummy_string[500];
     FILE *F;
+
 
     LC_BOX_PADDING = (int)ceil(LC_BOX_PADDING_IN_MPC/((float)BOX_LEN*(float)HII_DIM));
 
@@ -230,6 +243,7 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct FlagOptionStruct F
     double *PARAM_VALS = calloc(TOTAL_AVAILABLE_PARAMS,sizeof(double));
 
     /////////////////   Read in the cosmological parameter data     /////////////////
+
 
 
     if(READ_FROM_FILE) {
@@ -665,8 +679,10 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct FlagOptionStruct F
     // if GenerateNewICs == 1, generate the new initial conditions. This calculates the initial conditions in fourier space, and stores the relevant boxes in memory only (nothing is written to file)
     // At the same time, calculate the density field for calculating the IGM spin temperature.
     // This option must be set if the cosmology is to be varied.
+
     if(GenerateNewICs) {
         HIRES_density = (float *) fftwf_malloc(sizeof(float)*TOT_FFT_NUM_PIXELS);
+
 
         ComputeInitialConditions();
 
@@ -736,6 +752,7 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct FlagOptionStruct F
                 // This is because no data is stored
                 ComputeIonisationBoxes(i,redshifts[i],redshifts[i]+0.2);
             }
+
         }
     }
 
@@ -1571,6 +1588,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     float growth_factor_dz, fabs_dtdz, ZSTEP, Gamma_R, z_eff;
     const float dz = 0.01;
 
+
     const gsl_rng_type * T;
     gsl_rng * r;
 
@@ -1579,6 +1597,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     // Choice of DIM is arbitrary, just needs to be a value larger than HII_DIM. DIM should be sufficient as it shouldn't exceeded DIM (provided DIM > HII_DIM by a factor of at least ~3)
     int *LOS_index = calloc(DIM,sizeof(int));
     int *slice_index = calloc(DIM,sizeof(int));
+
 
     int total_in_z = 0;
 
@@ -1604,7 +1623,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     fabs_dtdz = fabs(dtdz(REDSHIFT_SAMPLE));
     t_ast = t_STAR * t_hubble(REDSHIFT_SAMPLE);
     growth_factor_dz = dicke(REDSHIFT_SAMPLE-dz);
-
+    
     // if USE_FCOLL_IONISATION_TABLE == 1, we are only calculating the ionisation fraction within a smaller volume (however much is required to linearly interpolate the fields for the light-cone).
     // To know which slices to keep and discard, need to store the relevant indices etc. for the given redshift. The below code does this.
     if(USE_FCOLL_IONISATION_TABLE) {
@@ -1689,16 +1708,21 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
             }
         }
     }
-
+    printf("made it this far %d %d %d\n", DIM, D, TOT_FFT_NUM_PIXELS);
+    sleep(2);
     /////////////////////////////////   BEGIN INITIALIZATION   //////////////////////////////////
+
+
 
     // perform a very rudimentary check to see if we are underresolved and not using the linear approx
     if ((BOX_LEN > DIM) && !EVOLVE_DENSITY_LINEARLY){
-    printf("perturb_field.c: WARNING: Resolution is likely too low for accurate evolved density fields\n It Is recommended that you either increase the resolution (DIM/Box_LEN) or set the EVOLVE_DENSITY_LINEARLY flag to 1\n");
+        printf("perturb_field.c: WARNING: Resolution is likely too low for accurate evolved density fields\n It Is recommended that you either increase the resolution (DIM/Box_LEN) or set the EVOLVE_DENSITY_LINEARLY flag to 1\n");
     }
 
     // initialize power spectrum
     growth_factor = dicke(REDSHIFT_SAMPLE);
+
+
 
     init_21cmMC_HII_arrays();
     if(GenerateNewICs) {

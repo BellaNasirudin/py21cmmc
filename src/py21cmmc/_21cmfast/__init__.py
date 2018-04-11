@@ -31,7 +31,7 @@ class BaseStructure(Structure):
         super().__init__(**values)  # Python 3 syntax
 
 
-class Point(Structure):
+class DriveReturn(Structure):
     _fields_ = [
         ('Sampled_z', POINTER(c_float)),
         ('GlobalNF', POINTER(c_float)),
@@ -286,6 +286,40 @@ class CosmoParams(BaseStructure):
     }
 
 
+class BoxDim(BaseStructure):
+    """
+    Structure containin box size parameters (with defaults) for drive_21cmMC.
+
+    Parameters
+    ----------
+    HII_DIM : int, optional
+        Number of cells for the low-res box.
+
+    DIM : int,optional
+        Number of cells for the high-res box (sampling ICs) along a principal axis. To avoid
+        sampling issues, DIM should be at least 3 or 4 times HII_DIM, and an integer multiple.
+        By default, it is set to 4*HII_DIM.
+
+    BOX_LEN : float, optional
+        Length of the box, in Mpc.
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.DIM < 0:
+            self.DIM = 4*self.HII_DIM
+
+    _fields_ = [
+        ("HII_DIM", c_int),
+        ("DIM", c_int),
+        ("BOX_LEN", c_float)
+    ]
+
+    _defaults_ = {
+        "BOX_LEN": 150.0,
+        "DIM": -1,
+        "HII_DIM": 100
+    }
+
 # TODO: this could be cleaned up just by requiring Point to contain structures itself.
 class LightCone:
     def __init__(self, raw_return):
@@ -342,15 +376,16 @@ class LightCone:
 
 boxdir = os.path.expanduser(os.path.join("~", ".py21cmmc", "Boxes"))
 
-_drive_21cmMC.restype = Point
-_drive_21cmMC.argtypes = [c_char_p, c_char_p, FlagOptions, AstroParams, CosmoParams]
+_drive_21cmMC.restype = DriveReturn
+_drive_21cmMC.argtypes = [c_char_p, c_char_p, BoxDim, FlagOptions, AstroParams, CosmoParams]
 
 
-def drive_21cmMC(random_ids, flag_options, astro_params, cosmo_params):
+def drive_21cmMC(random_ids, box_dim, flag_options, astro_params, cosmo_params):
+    assert type(box_dim) == BoxDim
     assert type(flag_options) == FlagOptions
     assert type(astro_params) == AstroParams
     assert type(cosmo_params) == CosmoParams
-
+    print(box_dim.DIM, box_dim.HII_DIM)
     # Force the types to adhere to Ctypes
     # flag_options = FlagOptions(**flag_options)
     # astro_params = AstroParams(**astro_params)
@@ -360,6 +395,7 @@ def drive_21cmMC(random_ids, flag_options, astro_params, cosmo_params):
     output = _drive_21cmMC(
         str.encode('%s' % (random_ids[0])),
         str.encode('%s' % (random_ids[1])),
+        box_dim,
         flag_options,
         astro_params,
         cosmo_params

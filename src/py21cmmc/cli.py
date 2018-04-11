@@ -23,7 +23,7 @@ import yaml
 # import importlib
 from os.path import join, expanduser
 import pickle
-from ._21cmfast import AstroParams, CosmoParams, FlagOptions
+from ._21cmfast import AstroParams, CosmoParams, FlagOptions, BoxDim
 
 def _get_config(config=None):
     if config is None:
@@ -47,7 +47,7 @@ def single(config, outdir, datafile, plot):
     "Run a single iteration of 21cmFAST, outputting a series of co-eval boxes, or a lightcone."
     cfg = _get_config(config)
 
-    outputs = run_single_instance(cfg['redshifts'], cfg['flag_options'],
+    outputs = run_single_instance(cfg['redshifts'], cfg['box_dim'], cfg['flag_options'],
                                   cfg['astro_parameters'], cfg['cosmo_parameters'],
                                   cfg['random_ids'])
 
@@ -76,8 +76,9 @@ def single(config, outdir, datafile, plot):
 @main.command()
 def defaults():
     for nm, inst in [("Flag Options", FlagOptions(redshifts=[9.0])),
-                   ("Astrophysical Parameters", AstroParams(INHOMO_RECO=False)),
-                   ("Cosmological Parameters",CosmoParams())]:
+                     ("Astrophysical Parameters", AstroParams(INHOMO_RECO=False)),
+                     ("Cosmological Parameters",CosmoParams()),
+                     ("Box Dimensions", BoxDim())]:
         print(nm+": ")
         print("-"*26)
         for k in inst._fields_:

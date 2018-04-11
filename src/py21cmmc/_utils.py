@@ -4,7 +4,7 @@ import os.path as pth
 from collections import OrderedDict
 import ctypes
 
-from . import drive_21cmMC, AstroParams, CosmoParams, FlagOptions
+from . import drive_21cmMC, AstroParams, CosmoParams, FlagOptions, BoxDim
 
 
 def _set_flag_options(redshifts, mass_dependent_zeta = False, read_from_file=True, generate_new_ics = False,
@@ -253,18 +253,20 @@ def _write_walker_file(redshifts, flag_options, astro_params, random_ids= ('3.00
                 f.write("CO-EVAL-Z    %f\n" % (float(z)))
 
 
-def run_single_instance(redshifts, flag_options=None, astro_parameters = None, cosmo_parameters = None,
+def run_single_instance(redshifts, box_dim = None, flag_options=None, astro_parameters = None, cosmo_parameters = None,
                         random_ids= ('3.000000', '3.000000') ):
 
     # We don't want to use empty dict as a default, as it is mutable. So set it here.
     flag_options = flag_options or {}
     astro_parameters = astro_parameters or {}
     cosmo_parameters = cosmo_parameters or {}
+    box_dim = box_dim or {}
 
     # Turn each of the passed dictionaries into Ctypes structures.
     flag_options = FlagOptions(redshifts, **flag_options)
     astro_parameters = AstroParams(flag_options.INHOMO_RECO, **astro_parameters)
     cosmo_parameters = CosmoParams(**cosmo_parameters)
+    box_dim = BoxDim(**box_dim)
 
     if flag_options.READ_FROM_FILE:
         _write_walker_file(redshifts, flag_options, astro_parameters, random_ids)
@@ -278,6 +280,7 @@ def run_single_instance(redshifts, flag_options=None, astro_parameters = None, c
 
     output = drive_21cmMC(
         random_ids,
+        box_dim,
         flag_options,
         astro_parameters,
         cosmo_parameters

@@ -110,4 +110,5 @@ fftwf_complex *N_rec_unfiltered, *N_rec_filtered;
 struct ReturnData DataToBeReturned;
 
 
-
+float BOX_LEN;
+int DIM, HII_DIM;

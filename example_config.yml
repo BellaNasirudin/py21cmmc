@@ -13,9 +13,14 @@ random_ids: (3.000000, 3.000000)
 # Specify parameters that 21cmFAST uses. These are broken into flags, astro and cosmo parameters.
 # Not all options are specified here, and all available parameters, along with their defaults,
 # can be found using "py21cmmc defaults".
+box_dim: {
+    BOX_LEN: 150.0,
+    HII_DIM: 100
+}
+
 flag_options: {
-    use_fcoll_table: False,
-    print_lightcone_cubes: True
+    USE_FCOLL_TABLE: False,
+    PRINT_LIGHTCONE_CUBES: True
 }
 
 astro_parameters: {
