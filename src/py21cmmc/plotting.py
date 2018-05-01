@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 
+from .wrapper import LightCone, CoEval
+
 EoR_color = matplotlib.colors.LinearSegmentedColormap.from_list('mycmap', [(0, 'white'), (0.21, 'yellow'),
                                                                                 (0.42, 'orange'), (0.63, 'red'),
                                                                                 (0.86, 'black'), (0.9, 'blue'),
@@ -38,10 +40,17 @@ def plot_global_data(lightcone, cmap=None, fig=None, ax = None,
 
 
 def plot_power_spec_1D(lightcone,fig=None, ax = None, PSmin = 0.01,PSmax = 100):
+    if isinstance(lightcone, LightCone):
+        n_ps = lightcone.power_spectrum.shape[0]
+    elif isinstance(lightcone, CoEval):
+        n_ps = lightcone.n_redshifts
+    else:
+        raise ValueError("Unsupported kind of 21cmFAST result passed.")
+
     if fig is None:
         fig, ax = plt.subplots(
-            int(np.ceil(np.sqrt(lightcone.params.n_ps))),
-            int(np.ceil(np.sqrt(lightcone.params.n_ps))),
+            int(np.ceil(np.sqrt(n_ps))),
+            int(np.ceil(np.sqrt(n_ps))),
             figsize=(12, 8.9),
             subplot_kw={"xscale":'log', "yscale":'log', "ylim":(PSmin, PSmax)},
             squeeze=False,
@@ -49,16 +58,15 @@ def plot_power_spec_1D(lightcone,fig=None, ax = None, PSmin = 0.01,PSmax = 100):
             sharex = True
         )
 
-    print(lightcone.k, lightcone.power_spectrum)
     for i,axi in enumerate(ax.flatten()):
-        #axi.axis([lightcone.k[0], lightcone.k[-1], PSmin, PSmax])
-        axi.plot(lightcone.k, lightcone.power_spectrum[i])
+        if i<n_ps:
+            axi.plot(lightcone.k, lightcone.power_spectrum[i])
 
     return fig, ax
 
 
 def plot_lightcone_slice(lightcone, slice_index=None, fig=None, ax=None, min_val=-250., max_val=50.0, cmap=None):
-    if not lightcone.is_lightcone:
+    if not isinstance(lightcone, LightCone):
         raise ValueError("This 21cmFAST output is not a lightcone. Aborting.")
 
     if cmap is None:

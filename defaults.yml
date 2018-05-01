@@ -1,0 +1,58 @@
+# The following form the defaults for many of the parameters that are used within 21cmFAST
+# The defaults may be modified by changing this file, or by setting the defaults in the defaults module, or just
+# by passing the parameters to a given function.
+
+CosmoParams: {
+    RANDOM_SEED: null,
+    SIGMA8: 0.82,
+    hlittle: 0.68,
+    OMm: 0.31,
+    OMb: 0.048,
+    POWER_INDEX: 0.97
+}
+
+
+BoxDim: {
+    BOX_LEN: 150.0,
+    DIM: null,
+    HII_DIM: 100,
+    DIREC: '.'
+}
+
+AstroParams: {
+    EFF_FACTOR_PL_INDEX: 0.0,
+    HII_EFF_FACTOR: 30.0,
+    R_BUBBLE_MAX: null,
+    ION_Tvir_MIN: 4.69897,
+    L_X: 40.0,
+    NU_X_THRESH: 500.0,
+    NU_X_BAND_MAX: 2000.0,
+    NU_X_MAX: 10000.0,
+    X_RAY_SPEC_INDEX: 1.0,
+    X_RAY_Tvir_MIN: null,
+    X_RAY_Tvir_LOWERBOUND: 4.0,
+    X_RAY_Tvir_UPPERBOUND: 6.0,
+    F_STAR: 0.05,
+    t_STAR: 0.5,
+    N_RSD_STEPS: 20,
+    LOS_direction: 2,
+    Z_HEAT_MAX: 10.0,
+    ZPRIME_STEP_FACTOR: 1.02,
+}
+
+
+FlagOptions: {
+    INCLUDE_ZETA_PL: False,
+    READ_FROM_FILE: False,
+    GenerateNewICs: True,
+    SUBCELL_RSD: False,
+    USE_FCOLL_IONISATION_TABLE: False,
+    SHORTEN_FCOLL: False,
+    USE_TS_FLUCT: False,
+    INHOMO_RECO: False,
+    STORE_DATA: False,
+    PRINT_FILES: False,
+    PRINT_COEVAL_21cmBoxes: False,
+    PRINT_LIGHTCONE_21cmBoxes: False,
+    redshifts: 6.0
+}

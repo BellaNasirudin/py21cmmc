@@ -1,5 +1,7 @@
 // Globals for drive_21cmMC_streamlined.c
 
+#ifndef _VARIABLES_H
+#define _VARIABLES_H
 /* Maximum allowed value for the kinetic temperature. Useful to set to avoid some spurious behaviour
  when the code is run with redshift poor resolution and very high X-ray heating efficiency */
 #define MAX_TK (float) 5e4
@@ -41,7 +43,9 @@ fftwf_complex *box, *unfiltered_box, *deldel_T, *deldel_T_LC, *deltax_unfiltered
 
 fftwf_complex *HIRES_box, *HIRES_box_saved;
 
-float *LOWRES_density, *LOWRES_vx, *LOWRES_vy, *LOWRES_vz, *LOWRES_vx_2LPT, *LOWRES_vy_2LPT, *LOWRES_vz_2LPT, *LOWRES_density_REDSHIFT, *LOWRES_velocity_REDSHIFT, *HIRES_density;
+float *LOWRES_density;
+float *LOWRES_vx;
+float *LOWRES_vy, *LOWRES_vz, *LOWRES_vx_2LPT, *LOWRES_vy_2LPT, *LOWRES_vz_2LPT, *LOWRES_density_REDSHIFT, *LOWRES_velocity_REDSHIFT, *HIRES_density;
 
 float *xH, *deltax, *Fcoll, *delta_T, *v, *vel_gradient, *zpp_growth, *inverse_diff, *Tk_box, *x_e_box, *Ts;
 //float *delNL0_bw,*zpp_for_evolve_list,*R_values,*delNL0_Offset,*delNL0_LL,*delNL0_UL,*SingleVal_float,*delNL0_ibw,*log10delNL0_diff,*log10delNL0_diff_UL;
@@ -80,7 +84,7 @@ int R_MFP_INT_1, R_MFP_INT_2, TVIR_INT_1, TVIR_INT_2, ZETA_PL_INT_1, ZETA_PL_INT
 float R_MFP_UB, TVIR_LB_FCOLL, TVIR_UB_FCOLL, ZETA_PL_LB, ZETA_PL_UB;
 int R_MFP_STEPS, R_INTER_STEPS, TVIR_STEPS, PL_STEPS, SIZE_FIRST, SIZE_INTERMEDIATE, SIZE_FINAL, USE_FCOLL_IONISATION_TABLE, LC_BOX_PADDING, SUBCELL_RSD, GenerateNewICs, N_RSD_STEPS, LOS_direction;
 
-int LOS_direction, slice_ct, total_slice_ct, num_boxes_interp,N_USER_REDSHIFT_LC,total_num_boxes,remainder_LC, Original_LOS_direction, Default_LOS_direction, Stored_LOS_direction_state_1, Stored_LOS_direction_state_2, N_RSTEPS_TOT,Co_eval_box_counter;
+int slice_ct, total_slice_ct, num_boxes_interp,N_USER_REDSHIFT_LC,total_num_boxes,remainder_LC, Original_LOS_direction, Default_LOS_direction, Stored_LOS_direction_state_1, Stored_LOS_direction_state_2, N_RSTEPS_TOT,Co_eval_box_counter;
 double z1_LC, z2_LC, z_LC, dR, final_z;
 double t_z1_LC,t_z2_LC,t_z_slice;
 float start_z, end_z;
@@ -99,6 +103,7 @@ unsigned long long RANDOM_SEED;
 float SIGMA8, hlittle, OMm, OMl, OMb, POWER_INDEX, INHOMO_RECO_R_BUBBLE_MAX;
 
 float RED_BOX_LENGTH,CUBIC_BOX_LENGTH;
+char * DIREC;
 
 unsigned long long DIM_MOCK_OBS_CUBIC,DIM_MOCK_OBS,DIM_MOCK_OBS_MID,DIM_MOCK_OBS_CUBIC_MID,DIM_MOCK_OBS_CUBIC_TOT_NUM_PIXELS,DIM_MOCK_OBS_TOT_NUM_PIXELS, DIM_MOCK_OBS_TOT_FFT_NUM_PIXELS,DIM_MOCK_OBS_KSPACE_NUM_PIXELS, DIM_MOCK_OBS_CUBIC_TOT_FFT_NUM_PIXELS, DIM_MOCK_OBS_CUBIC_KSPACE_NUM_PIXELS;
 
@@ -107,8 +112,92 @@ unsigned long long DIM_MOCK_OBS_CUBIC,DIM_MOCK_OBS,DIM_MOCK_OBS_MID,DIM_MOCK_OBS
 float *z_re, *Gamma12;
 fftwf_complex *N_rec_unfiltered, *N_rec_filtered;
 
+struct ReturnParams{
+    int HII_DIM;         // Resolution of low-res box
+    float BOX_LEN;       // Size of box in Mpc
+    int NUM_BINS;        // Number of bins in the PS
+    int total_slice_ct;  // Total number of slices (?)
+    int n_redshifts;     // Number of redshifts
+    int n_ps;            // Number of power spectra calculated
+    int lightcone;       // Whether a lightcone was generated.
+};
+struct ReturnData{
+    double *RedshiftData;
+    double *NeutralFractionData;
+    double *BrightnessTempData;
+    float *PSData_k;
+    float *PSData;
+    float *LCBox;
+    struct ReturnParams Parameters;
+};
+
+
 struct ReturnData DataToBeReturned;
 
 
 float BOX_LEN;
 int DIM, HII_DIM;
+
+
+struct FlagOptionStruct{
+    int N_USER_REDSHIFT;   // Number of user defined redshifts for which find_HII_bubbles will be called
+    int USE_LIGHTCONE;     // Flag set to 1 if light cone boxes are to be used (feature has yet to be added)
+    int INCLUDE_ZETA_PL;   // Requires work... see comment in function.
+    float REDSHIFT;        // Redshift for which Ts.c is evolved down to, i.e. z'
+    int READ_FROM_FILE;    // Read parameters from file rather than variable.
+    int GenerateNewICs;    // Whether to create a new density field at each sampling (i.e. new initial conditions). Must use if the cosmology is being varied
+    int SUBCELL_RSD;       // Whether to include redshift space distortions along the line-of-sight (z-direction only).
+    int USE_FCOLL_IONISATION_TABLE; //Whether to use an interpolation for the collapsed fraction for the find_HII_bubbles part of the computation
+    int SHORTEN_FCOLL;     // Whether to use an interpolation for the collapsed fraction for the Ts.c computation
+    int USE_TS_FLUCT;      // Whether to perform the full evolution of the IGM spin temperature, or just assume the saturated spin temperature limit
+    int INHOMO_RECO;       // Whether to include inhomogeneous recombinations into the calculation of the ionisation fraction
+    int STORE_DATA;        // Whether to output the global data for the IGM neutral fraction and average temperature brightness (used for the global signal)
+    int PRINT_FILES;
+    int PRINT_COEVAL_21cmBoxes;
+    int PRINT_LIGHTCONE_21cmBoxes;
+    double *redshifts;
+};
+
+struct AstroParamStruct{
+    float EFF_FACTOR_PL_INDEX;
+    float HII_EFF_FACTOR;
+
+    float R_BUBBLE_MAX;
+
+    float ION_Tvir_MIN;
+    float L_X;
+    float NU_X_THRESH;
+    float NU_X_BAND_MAX;
+    float NU_X_MAX;
+    float X_RAY_SPEC_INDEX;
+    float X_RAY_Tvir_MIN;
+    float X_RAY_Tvir_LOWERBOUND;
+    float X_RAY_Tvir_UPPERBOUND;
+    float F_STAR;
+    float t_STAR;
+    int N_RSD_STEPS;
+    int LOS_direction;
+    float Z_HEAT_MAX;
+    float ZPRIME_STEP_FACTOR;
+};
+
+struct CosmoParamStruct{
+    unsigned long long RANDOM_SEED;
+    float SIGMA8;
+    float hlittle;
+    float OMm;
+    float OMl;
+    float OMb;
+    float POWER_INDEX;
+
+};
+
+
+struct BoxDimStruct{
+    int HII_DIM;
+    int DIM;
+    float BOX_LEN;
+    char* DIREC;
+};
+
+#endif

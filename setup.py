@@ -17,8 +17,10 @@ from os.path import expanduser
 from setuptools import Extension
 from setuptools import find_packages
 from setuptools import setup
+from distutils.core import Extension as DExtension
 
 from shutil import copyfile, move
+from distutils.dir_util import copy_tree
 
 def read(*names, **kwargs):
     return io.open(
@@ -41,7 +43,24 @@ except:
     pass
 
 copyfile("example_config.yml", join(pkgdir, "example_config.yml"))
+copyfile("example_config_mcmc.yml", join(pkgdir, "example_config_mcmc.yml"))
+copyfile("defaults.yml", join(pkgdir, "defaults.yml"))
+copy_tree("MockObs", join(pkgdir, "MockData"))
+copy_tree("NoiseData", join(pkgdir, "NoiseData"))
+copy_tree("PriorData", join(pkgdir, "PriorData"))
+copy_tree("External_tables", join(pkgdir, "External_tables"))
 # ======================================================================================================================
+
+
+# We have to hand-modify the constants in the header files to point to the external tables.
+for pth, dirs, fls in os.walk("src/py21cmmc/_21cmfast"):
+    for fl in [xx for xx in fls if (xx.endswith(".c") or xx.lower().endswith(".h"))]:
+        with open(join(pth,fl), 'r') as f:
+            x = f.read()
+        if "../External_tables" in x:
+            x = x.replace("../External_tables", join(expanduser("~"),'.py21cmmc', 'External_tables'))
+            with open(join(pth,fl),'w') as f:
+                f.write(x)
 
 
 # Enable code coverage for C code: we can't use CFLAGS=-coverage in tox.ini, since that may mess with compiling
@@ -97,7 +116,9 @@ setup(
         'click',
         'tqdm',
         'numpy',
-        'pyyaml'
+        'pyyaml',
+        'cosmoHammer',
+        'cffi>=1.0'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={
@@ -110,14 +131,29 @@ setup(
             'py21cmmc = py21cmmc.cli:main',
         ]
     },
-    ext_modules=[
-        Extension(
-            'py21cmmc._21cmfast.drive_21cmMC_streamlined',
-            sources=['src/py21cmmc/_21cmfast/drive_21cmMC_streamlined.c'],
-            libraries=['m', 'gsl', 'gslcblas', 'fftw3f_omp', 'fftw3f'],
-            include_dirs=['/usr/local/include', 'src/py21cmmc/_21cmfast'],
-            extra_compile_args = ['-fopenmp', '-Ofast', '-w']
-        ),
+    cffi_modules=["build_cffi.py:ffi"],
+    # ext_modules=[
+    #     Extension(
+    #         'py21cmmc._21cmfast.drive_21cmMC_streamlined',
+    #         sources=['src/py21cmmc/_21cmfast/drive_21cmMC_streamlined.c'],
+    #         libraries=['m', 'gsl', 'gslcblas', 'fftw3f_omp', 'fftw3f'],
+    #         include_dirs=['/usr/local/include', 'src/py21cmmc/_21cmfast'],
+    #         extra_compile_args = ['-fopenmp', '-Ofast', '-w']
+    #     ),
+    #     Extension(
+    #         'py21cmmc._21cmfast.ComputingTau_e',
+    #         sources=['src/py21cmmc/_21cmfast/ComputingTau_e.c'],
+    #         libraries=['m', 'gsl', 'gslcblas', 'fftw3f_omp', 'fftw3f'],
+    #         include_dirs=['/usr/local/include', 'src/py21cmmc/_21cmfast'],
+    #         extra_compile_args=['-fopenmp', '-Ofast', '-w']
+    #     ),
+    #     DExtension('py21cmmc._21cmfast.swig_library',
+    #               ['src/py21cmmc/_21cmfast/wrapper.i', 'src/py21cmmc/_21cmfast/drive_21cmMC_streamlined.c'],
+    #               library_dirs=['/opt/local/lib'],
+    #               libraries=['m', 'gsl', 'gslcblas', 'fftw3f_omp', 'fftw3f'],
+    #               include_dirs=['/usr/local/include', 'src/py21cmmc/_21cmfast'],
+    #               extra_compile_args=['-fopenmp', '-Ofast']
+    #               )
         # Extension(
         #     'py21cmmc._21cmfast.init',
         #     sources=['src/py21cmmc/_21cmfast/init.c'],
@@ -133,5 +169,5 @@ setup(
         #     extra_compile_args = ['-fopenmp', '-Ofast']
         # )
 
-    ],
+    # ],
 )

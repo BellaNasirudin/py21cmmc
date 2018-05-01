@@ -1,0 +1,63 @@
+# Directory in which to find boxes (not used at the moment)
+boxdir: ~/.py21cmmc/Boxes
+
+# Choose appropriate redshifts to calculate.
+# If a list, get co-eval boxes at these redshifts.
+# If a scalar, get a lightcone *starting* at this redshift.
+redshifts: [6.429094]
+
+# Specify parameters that 21cmFAST uses. These are broken into flags, astro and cosmo parameters.
+# Not all options are specified here, and all available parameters, along with their defaults,
+# can be found using "py21cmmc defaults".
+# NOTE: These specify "fiducial" parameters. The astro_ and cosmo_ parameters may be used as unknowns to be fit
+# using MCMC below.
+box_dim: {
+    BOX_LEN: 150.0,
+    HII_DIM: 100
+}
+
+flag_options: {
+    USE_FCOLL_TABLE: False,
+    PRINT_LIGHTCONE_CUBES: True
+}
+
+astro_parameters: {
+    HII_EFF_FACTOR: 30.0,
+    ION_Tvir_MIN: 4.69897
+}
+
+cosmo_parameters: {
+    OMEGA_M: 0.31
+}
+
+
+# MCMC Varying Parameters
+parameters: {
+    HII_EFF_FACTOR: ["alpha", 30.0, 10.0, 50.0, 3.0],
+}
+
+
+# Specification of Likelihoods, and their options (comment out if not required).
+# Note that most likelihoods have defaults for their options -- you can find out what they are in the docs.
+likelihoods: {
+    Planck: {},
+    McGreer: {},
+#    Greig: {},
+#    Global: {},
+    1DPowerMultiZ: {
+        data_redshifts: [6.429094]
+    }
+}
+
+# Options to set for what output data is stored along the way.
+storage_options: {
+    DATADIR: MCMCdata,
+    KEEP_ALL_DATA: True,
+    KEEP_GLOBAL_DATA: True,
+}
+
+# MCMC Run Options
+walkersRatio: 4
+burninIterations: 1
+sampleIterations: 10
+threadCount: 1

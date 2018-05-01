@@ -46,7 +46,7 @@ void init_21cmMC_TsSaveBoxes_arrays();
 
 void ComputeBoxesForFile();
 void ComputeTsBoxes();
-void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_REDSHIFT);
+void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_REDSHIFT, int IcsInMemory);
 
 void adj_complex_conj();
 void ComputeInitialConditions();
@@ -95,83 +95,6 @@ unsigned long long coeval_box_pos_FFT(int LOS_dir,int xi,int yi,int zi){
     return position;
 }
 
-struct FlagOptionStruct{
-    int N_USER_REDSHIFT;   // Number of user defined redshifts for which find_HII_bubbles will be called
-    int USE_LIGHTCONE;     // Flag set to 1 if light cone boxes are to be used (feature has yet to be added)
-    int INCLUDE_ZETA_PL;   // Requires work... see comment in function.
-    float REDSHIFT;        // Redshift for which Ts.c is evolved down to, i.e. z'
-    int READ_FROM_FILE;    // Read parameters from file rather than variable.
-    int GenerateNewICs;    // Whether to create a new density field at each sampling (i.e. new initial conditions). Must use if the cosmology is being varied
-    int SUBCELL_RSD;       // Whether to include redshift space distortions along the line-of-sight (z-direction only).
-    int USE_FCOLL_IONISATION_TABLE; //Whether to use an interpolation for the collapsed fraction for the find_HII_bubbles part of the computation
-    int SHORTEN_FCOLL;     // Whether to use an interpolation for the collapsed fraction for the Ts.c computation
-    int USE_TS_FLUCT;      // Whether to perform the full evolution of the IGM spin temperature, or just assume the saturated spin temperature limit
-    int INHOMO_RECO;       // Whether to include inhomogeneous recombinations into the calculation of the ionisation fraction
-    int STORE_DATA;        // Whether to output the global data for the IGM neutral fraction and average temperature brightness (used for the global signal)
-    int PRINT_FILES;
-    int PRINT_COEVAL_21cmBoxes;
-    int PRINT_LIGHTCONE_21cmBoxes;
-    double *redshifts;
-};
-
-struct AstroParamStruct{
-    float EFF_FACTOR_PL_INDEX;
-    float HII_EFF_FACTOR;
-
-    float R_BUBBLE_MAX;
-
-    float ION_Tvir_MIN;
-    float L_X;
-    float NU_X_THRESH;
-    float NU_X_BAND_MAX;
-    float NU_X_MAX;
-    float X_RAY_SPEC_INDEX;
-    float X_RAY_Tvir_MIN;
-    float X_RAY_Tvir_LOWERBOUND;
-    float X_RAY_Tvir_UPPERBOUND;
-    float F_STAR;
-    float t_STAR;
-    int N_RSD_STEPS;
-    int LOS_direction;
-    float Z_HEAT_MAX;
-    float ZPRIME_STEP_FACTOR;
-};
-
-struct CosmoParamStruct{
-    unsigned long long RANDOM_SEED;
-    float SIGMA8;
-    float hlittle;
-    float OMm;
-    float OMl;
-    float OMb;
-    float POWER_INDEX;
-
-};
-
-struct BoxDimStruct{
-    int HII_DIM;
-    int DIM;
-    float BOX_LEN;
-};
-
-struct ReturnParams{
-    int HII_DIM;         // Resolution of low-res box
-    float BOX_LEN;       // Size of box in Mpc
-    int NUM_BINS;        // Number of bins in the PS
-    int total_slice_ct;  // Total number of slices (?)
-    int n_redshifts;     // Number of redshifts
-    int n_ps;            // Number of power spectra calculated
-    int lightcone;       // Whether a lightcone was generated.
-};
-struct ReturnData{
-    float *RedshiftData;
-    float *NeutralFractionData;
-    float *BrightnessTempData;
-    float *PSData_k;
-    float *PSData;
-    float *LCBox;
-    struct ReturnParams Parameters;
-};
 
 struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDim, struct FlagOptionStruct FlagOptions,
                                struct AstroParamStruct AstrophysicalParams, struct CosmoParamStruct CosmologicalParams) {
@@ -475,13 +398,13 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDi
 
         R_BUBBLE_MAX = AstrophysicalParams.R_BUBBLE_MAX;
 
-        ION_Tvir_MIN = pow(10.,AstrophysicalParams.ION_Tvir_MIN);
-        L_X = pow(10.,AstrophysicalParams.L_X);
+        ION_Tvir_MIN = AstrophysicalParams.ION_Tvir_MIN;
+        L_X = AstrophysicalParams.L_X;
         NU_X_THRESH = AstrophysicalParams.NU_X_THRESH;
         NU_X_BAND_MAX = AstrophysicalParams.NU_X_BAND_MAX;
         NU_X_MAX = AstrophysicalParams.NU_X_MAX;
         X_RAY_SPEC_INDEX = AstrophysicalParams.X_RAY_SPEC_INDEX;
-        X_RAY_Tvir_MIN = pow(10.,AstrophysicalParams.X_RAY_Tvir_MIN);
+        X_RAY_Tvir_MIN = AstrophysicalParams.X_RAY_Tvir_MIN;
         X_RAY_Tvir_LOWERBOUND = AstrophysicalParams.X_RAY_Tvir_LOWERBOUND;
         X_RAY_Tvir_UPPERBOUND = AstrophysicalParams.X_RAY_Tvir_UPPERBOUND;
         F_STAR = AstrophysicalParams.F_STAR;
@@ -589,11 +512,6 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDi
     }
     Stored_LOS_direction_state_2 = LOS_direction;
 
-    int total_slice_ct;  // Total number of slices (?)
-    int n_redshifts;     // Number of redshifts
-    int n_ps;            // Number of power spectra calculated
-    int lightcone;       // Whether a lightcone was generated.
-
     DataToBeReturned.Parameters.total_slice_ct = total_slice_ct;
     DataToBeReturned.Parameters.n_redshifts = N_USER_REDSHIFT;
     if(USE_LIGHTCONE) {
@@ -604,9 +522,9 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDi
     }
     DataToBeReturned.Parameters.lightcone = USE_LIGHTCONE;
 
-    DataToBeReturned.RedshiftData = calloc(N_USER_REDSHIFT,sizeof(float));
-    DataToBeReturned.NeutralFractionData = calloc(N_USER_REDSHIFT,sizeof(float));
-    DataToBeReturned.BrightnessTempData = calloc(N_USER_REDSHIFT,sizeof(float));
+    DataToBeReturned.RedshiftData = calloc(N_USER_REDSHIFT,sizeof(double));
+    DataToBeReturned.NeutralFractionData = calloc(N_USER_REDSHIFT,sizeof(double));
+    DataToBeReturned.BrightnessTempData = calloc(N_USER_REDSHIFT,sizeof(double));
 
     if(USE_LIGHTCONE) {
         DataToBeReturned.PSData_k = calloc(NUM_BINS*total_num_boxes,sizeof(float));
@@ -750,7 +668,7 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDi
                 // Note, that INHOMO_RECO cannot be set when entering here.
                 // INHOMO_RECO must be set with USE_TS_FLUCT
                 // This is because no data is stored
-                ComputeIonisationBoxes(i,redshifts[i],redshifts[i]+0.2);
+                ComputeIonisationBoxes(i, redshifts[i], redshifts[i] + 0.2, 0);
             }
 
         }
@@ -760,7 +678,7 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDi
                 // Note, that INHOMO_RECO cannot be set when entering here.
                 // INHOMO_RECO must be set with USE_TS_FLUCT
                 // This is because no data is stored
-                ComputeIonisationBoxes(i,redshifts[i],redshifts[i]+0.2);
+                ComputeIonisationBoxes(i, redshifts[i], redshifts[i] + 0.2, 0);
             }
 
         }
@@ -777,9 +695,9 @@ struct ReturnData drive_21CMMC(char* arg1, char* arg2, struct BoxDimStruct BoxDi
     }
 
     for(i=0;i<N_USER_REDSHIFT;i++) {
-        DataToBeReturned.RedshiftData[i] = (float)redshifts[i];
-        DataToBeReturned.NeutralFractionData[i] = (float)aveNF[i];
-        DataToBeReturned.BrightnessTempData[i] = (float)aveTb[i];
+        DataToBeReturned.RedshiftData[i] = redshifts[i];
+        DataToBeReturned.NeutralFractionData[i] = aveNF[i];
+        DataToBeReturned.BrightnessTempData[i] = aveTb[i];
     }
 
     // Output the text-file containing the file names of all the 21cm PS calculated from the light-cone boxes
@@ -936,11 +854,11 @@ void ComputeTsBoxes() {
         TK = T_RECFAST(REDSHIFT,0);
 
         // open input
-        sprintf(filename, "../Boxes/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc",REDSHIFT, HII_DIM, BOX_LEN);
+        sprintf(filename, "%s/Boxes/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc",DIREC, REDSHIFT, HII_DIM, BOX_LEN);
         F = fopen(filename, "rb");
 
         // open output
-        sprintf(filename, "../Boxes/Ts_z%06.2f_zetaX%.1e_alphaX%.1f_TvirminX%.1e_zetaIon%.2f_Pop%i_%i_%.0fMpc", REDSHIFT, HII_EFF_FACTOR, X_RAY_SPEC_INDEX, X_RAY_Tvir_MIN, R_BUBBLE_MAX, Pop, HII_DIM, BOX_LEN);
+        sprintf(filename, "%s/Boxes/Ts_z%06.2f_zetaX%.1e_alphaX%.1f_TvirminX%.1e_zetaIon%.2f_Pop%i_%i_%.0fMpc", REDSHIFT, HII_EFF_FACTOR, X_RAY_SPEC_INDEX, X_RAY_Tvir_MIN, R_BUBBLE_MAX, Pop, HII_DIM, BOX_LEN);
 
         // read file
         for (i=0; i<HII_DIM; i++){
@@ -981,7 +899,7 @@ void ComputeTsBoxes() {
 
             // If GenerateNewICs == 1, we are generating a new set of initial conditions and density field. Hence, calculate the density field to be used for Ts.c
 
-            ComputePerturbField(REDSHIFT);
+            // ComputePerturbField(REDSHIFT);
 
             for (i=0; i<HII_DIM; i++){
                 for (j=0; j<HII_DIM; j++){
@@ -996,7 +914,7 @@ void ComputeTsBoxes() {
             // Read in a pre-computed density field which is stored in the "Boxes" folder
 
             // allocate memory for the nonlinear density field and open file
-            sprintf(filename, "../Boxes/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc",REDSHIFT, HII_DIM, BOX_LEN);
+            sprintf(filename, "%s/Boxes/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc",DIREC, REDSHIFT, HII_DIM, BOX_LEN);
             F = fopen(filename, "rb");
             for (i=0; i<HII_DIM; i++){
                 for (j=0; j<HII_DIM; j++){
@@ -1090,6 +1008,7 @@ void ComputeTsBoxes() {
             Tk_box[ct] = Tk_BC;
             x_e_box[ct] = xe_BC;
         }
+
         x_e_ave = xe_BC;
         Tk_ave = Tk_BC;
 
@@ -1531,10 +1450,10 @@ void ComputeTsBoxes() {
                     if(i_z==0) {
                         // If in here, it doesn't matter what PREV_REDSHIFT is set to
                         // as the recombinations will not be calculated
-                        ComputeIonisationBoxes(i_z,redshifts[i_z],redshifts[i_z]+0.2);
+                        ComputeIonisationBoxes(i_z, redshifts[i_z], redshifts[i_z] + 0.2, 0);
                     }
                     else {
-                        ComputeIonisationBoxes(i_z,redshifts[i_z],redshifts[i_z-1]);
+                        ComputeIonisationBoxes(i_z, redshifts[i_z], redshifts[i_z - 1], 0);
                     }
                 }
             }
@@ -1575,7 +1494,7 @@ void ComputeTsBoxes() {
     free(Fcoll_R_Table);
 }
 
-void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_REDSHIFT) {
+void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_REDSHIFT, int ICsInMemory) {
 
     /* This is an entire re-write of find_HII_bubbles.c from 21cmFAST. Refer back to that code if this become a little confusing, the computation and algorithm are the same.
      Additionally, the code here includes delta_T.c for calculating the 21cm PS, and also redshift_interpolate_boxes.c for calculating the lightcones. */
@@ -1633,6 +1552,8 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     fabs_dtdz = fabs(dtdz(REDSHIFT_SAMPLE));
     t_ast = t_STAR * t_hubble(REDSHIFT_SAMPLE);
     growth_factor_dz = dicke(REDSHIFT_SAMPLE-dz);
+
+//    printf("HERE1: %f %f %f\n", fabs_dtdz, t_ast, growth_factor_dz);
 
     // if USE_FCOLL_IONISATION_TABLE == 1, we are only calculating the ionisation fraction within a smaller volume (however much is required to linearly interpolate the fields for the light-cone).
     // To know which slices to keep and discard, need to store the relevant indices etc. for the given redshift. The below code does this.
@@ -1732,12 +1653,12 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
 
 
 
+
     init_21cmMC_HII_arrays();
     if(GenerateNewICs) {
 
         // Calculate the density field for this redshift if the initial conditions/cosmology are changing
-        ComputePerturbField(REDSHIFT_SAMPLE);
-
+        if(!ICsInMemory) ComputePerturbField(REDSHIFT_SAMPLE);
         for (i=0; i<HII_DIM; i++){
             for (j=0; j<HII_DIM; j++){
                 for (k=0; k<HII_DIM; k++){
@@ -1749,8 +1670,9 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     }
     else {
         // Read the desnity field of this redshift from file
-        sprintf(filename, "../Boxes/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc", REDSHIFT_SAMPLE, HII_DIM, BOX_LEN);
+        sprintf(filename, "%s/Boxes/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc", DIREC, REDSHIFT_SAMPLE, HII_DIM, BOX_LEN);
         F = fopen(filename, "rb");
+        printf("%s\n", filename);
         for (i=0; i<HII_DIM; i++){
             for (j=0; j<HII_DIM; j++){
                 for (k=0; k<HII_DIM; k++){
@@ -1762,6 +1684,12 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
         }
         fclose(F);
     }
+
+    //printf("N_USER_REDSHIFT: %d", N_USER_REDSHIFT);
+    //printf("deltax_unfiltered: %f %f %f\n", deltax_unfiltered[0], deltax_unfiltered[100], deltax_unfiltered[200]);
+    //printf("LOWRES_velocity: %f %f %f\n", LOWRES_velocity_REDSHIFT[0], LOWRES_velocity_REDSHIFT[100], LOWRES_velocity_REDSHIFT[200]);
+    //printf("tvir, z: %f %f\n", ION_Tvir_MIN, REDSHIFT_SAMPLE );
+    //printf("growth: %f\n", growth_factor);
 
     // keep the unfiltered density field in an array, to save it for later
     memcpy(deltax_unfiltered_original, deltax_unfiltered, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
@@ -1788,6 +1716,8 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     }
     // check for WDM
 
+//    printf("HERE3.1: %f %f %f\n", pixel_mass, cell_length_factor, M_MIN);
+
     if (P_CUTOFF && ( M_MIN < M_J_WDM())){
         printf( "The default Jeans mass of %e Msun is smaller than the scale supressed by the effective pressure of WDM.\n", M_MIN);
         M_MIN = M_J_WDM();
@@ -1804,14 +1734,19 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
 
     MFEEDBACK = M_MIN;
 
+
     if(EFF_FACTOR_PL_INDEX != 0.) {
+
         mean_f_coll_st = FgtrM_st_PL(REDSHIFT_SAMPLE,M_MIN,MFEEDBACK,EFF_FACTOR_PL_INDEX);
 
     }
     else {
-
+  //      printf("HERE3.2: %f %f\n", REDSHIFT_SAMPLE,M_MIN);
         mean_f_coll_st = FgtrM_st(REDSHIFT_SAMPLE, M_MIN);
     }
+
+    //printf("HERE3.1: %f %f %f %f\n", pixel_mass, cell_length_factor, M_MIN, mean_f_coll_st);
+
     if (mean_f_coll_st/(1./HII_EFF_FACTOR) < HII_ROUND_ERR){ // way too small to ionize anything...
 //        printf( "The ST mean collapse fraction is %e, which is much smaller than the effective critical collapse fraction of %e\n I will just declare everything to be neutral\n", mean_f_coll_st, f_coll_crit);
 
@@ -1880,6 +1815,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
                 N_rec_unfiltered[ct] /= (double)HII_TOT_NUM_PIXELS;
             }
         }
+
 
         /*************************************************************************************/
         /***************** LOOP THROUGH THE FILTER RADII (in Mpc)  ***************************/
@@ -2241,6 +2177,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
             counter_R -= 1;
 
         }
+
         if(!USE_FCOLL_IONISATION_TABLE) {
             // find the neutral fraction
             global_xH = 0;
@@ -2249,7 +2186,9 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
                 global_xH += xH[ct];
             }
             global_xH /= (float)HII_TOT_NUM_PIXELS;
+
         }
+
         else {
             // Estimate the neutral fraction from the reduced box. Can be handy to have, but shouldn't be trusted for anything more as only a fraction of the co-eval box is being used
             global_xH = 0;
@@ -2322,6 +2261,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     ////////////////////////////////////  BEGIN INITIALIZATION //////////////////////////////////////////
     ave = 0;
 
+
     if(GenerateNewICs) {
 
         for (i=0; i<HII_DIM; i++){
@@ -2334,11 +2274,11 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     }
     else {
         switch(VELOCITY_COMPONENT){
-            case 1:  sprintf(filename, "../Boxes/updated_vx_z%06.2f_%i_%.0fMpc", REDSHIFT_SAMPLE, HII_DIM, BOX_LEN);
+            case 1:  sprintf(filename, "%s/Boxes/updated_vx_z%06.2f_%i_%.0fMpc", DIREC, REDSHIFT_SAMPLE, HII_DIM, BOX_LEN);
                 break;
-            case 3:  sprintf(filename, "../Boxes/updated_vz_z%06.2f_%i_%.0fMpc", REDSHIFT_SAMPLE, HII_DIM, BOX_LEN);
+            case 3:  sprintf(filename, "%s/Boxes/updated_vz_z%06.2f_%i_%.0fMpc", DIREC, REDSHIFT_SAMPLE, HII_DIM, BOX_LEN);
                 break;
-            default: sprintf(filename, "../Boxes/updated_vy_z%06.2f_%i_%.0fMpc", REDSHIFT_SAMPLE, HII_DIM, BOX_LEN);
+            default: sprintf(filename, "%s/Boxes/updated_vy_z%06.2f_%i_%.0fMpc", DIREC, REDSHIFT_SAMPLE, HII_DIM, BOX_LEN);
         }
         F=fopen(filename, "rb");
         for (i=0; i<HII_DIM; i++){
@@ -2358,6 +2298,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     H = hubble(REDSHIFT_SAMPLE);
     const_factor = 27 * (OMb*hlittle*hlittle/0.023) *
     sqrt( (0.15/OMm/hlittle/hlittle) * (1+REDSHIFT_SAMPLE)/10.0 );
+
 
     memcpy(deltax, deltax_unfiltered_original, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
 
@@ -2391,6 +2332,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     }
     ave /= (float)HII_TOT_NUM_PIXELS;
 
+
     x_val1 = 0.;
     x_val2 = 1.;
 
@@ -2409,6 +2351,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
         plan = fftwf_plan_dft_r2c_3d(HII_DIM, HII_DIM, HII_DIM, (float *)vel_gradient, (fftwf_complex *)vel_gradient, FFTW_ESTIMATE);
         fftwf_execute(plan);
         fftwf_destroy_plan(plan);
+
 
         for (n_x=0; n_x<HII_DIM; n_x++){
             if (n_x>HII_MIDDLE)
@@ -2750,10 +2693,13 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
 
     // Note that the average brightness temperature will be less reliable if USE_FCOLL_IONISATION_TABLE is set as it uses only a sub-volume (i.e. larger sample variance)
     aveTb[sample_index] = ave;
-
     /////////////////////////////  PRINT OUT THE POWERSPECTRUM  ///////////////////////////////
+//    for(i=0;i<N_USER_REDSHIFT_LC;i++){
+//        printf("%d %d %d\n", i,start_index_LC[i], end_index_LC[i]);
+//    }
 
     if(USE_LIGHTCONE) {
+//        printf("LIGHTCONING: %d, tnb: %d, nbi: %d, rlc: %d\n", sample_index, total_num_boxes, num_boxes_interp, remainder_LC);
 
         if(sample_index==0) {
 
@@ -2764,9 +2710,11 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
             memcpy(box_z2,delta_T,sizeof(float)*HII_TOT_NUM_PIXELS);
             z2_LC = redshifts[sample_index];
             t_z2_LC = gettime(z2_LC);
-        }
-        else {
 
+        }
+
+
+        else {
             // LOS_direction is used in two separate locations (iterated), so we store the state for each individucal usage
             LOS_direction = Stored_LOS_direction_state_2;
 
@@ -2827,9 +2775,17 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
                         fclose(F);
                     }
 
+
                     for (ii=0;ii<HII_DIM; ii++){
                         for (j=0;j<HII_DIM; j++){
                             for (k=0; k<HII_DIM; k++){
+//                                if((ii + num_boxes_interp*HII_DIM) + (total_num_boxes*HII_DIM + remainder_LC)*(k+HII_DIM*j) > HII_DIM*HII_DIM*total_slice_ct){
+//                                    printf("WHOA GOTCHA!\n");
+//                                    printf("%d %d %d %d %d %d %d %d\n", ii, j, k, num_boxes_interp, remainder_LC, total_num_boxes,
+//                                    (ii + num_boxes_interp*HII_DIM) + (total_num_boxes*HII_DIM + remainder_LC)*(k+HII_DIM*j),
+//                                    HII_DIM*HII_DIM*total_slice_ct);
+//                                    exit(0);
+//                                }
                                 DataToBeReturned.LCBox[(ii + num_boxes_interp*HII_DIM) + (total_num_boxes*HII_DIM + remainder_LC)*(k+HII_DIM*j)] = box_interpolate[ii + HII_DIM*(k+HII_DIM*j)];
                             }
                         }
@@ -2969,6 +2925,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
             fclose(F);
         }
 
+
         GeneratePS(1,ave);
 
         for (ct=1; ct<NUM_BINS; ct++){
@@ -2995,11 +2952,25 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
     //////////////////////////// End of perform 'delta_T.c' /////////////////////////////////////
     }
 
+//    if(USE_LIGHTCONE==1){
+//        float sum=0.0;
+//        for(i=0;i<HII_DIM*HII_DIM*total_slice_ct;i++){
+//            sum += DataToBeReturned.LCBox[i];
+//        }
+//
+//        printf("SUM of LCBox: %f\n", sum);
+//    }
+//    else{
+//        for(i=0;i<10;i++){
+//            printf("delta_T %d: %f\n",i,delta_T[i]);
+//        }
+//
+//    }
+
     free(LOS_index);
     free(slice_index);
 
     destroy_21cmMC_HII_arrays(skip_deallocate);
-
 }
 
 void ComputeInitialConditions() {
@@ -3053,6 +3024,7 @@ void ComputeInitialConditions() {
     f_pixel_factor = DIM/(float)HII_DIM;
     /************  END INITIALIZATION ******************/
 
+
     /************ CREATE K-SPACE GAUSSIAN RANDOM FIELD ***********/
     for (n_x=0; n_x<DIM; n_x++){
         // convert index to numerical value for this component of the k-mode: k = (2*pi/L) * n
@@ -3082,13 +3054,17 @@ void ComputeInitialConditions() {
                 // of our k entry from a Gaussian distribution
                 a = gsl_ran_ugaussian(r);
                 b = gsl_ran_ugaussian(r);
+//                if(n_x==0 && n_y==0 && n_z==0) printf("%f %f %f %f %f %f %f\n", k_x, k_y, k_z, k_mag, p, a, b);
                 HIRES_box[C_INDEX(n_x, n_y, n_z)] = sqrt(VOLUME*p/2.0) * (a + b*I);
             }
         }
     }
 
+
+
     /*****  Adjust the complex conjugate relations for a real array  *****/
     adj_complex_conj(HIRES_box);
+
 
     /*** Let's also create a lower-resolution version of the density field  ***/
 
@@ -3110,22 +3086,28 @@ void ComputeInitialConditions() {
             }
         }
     }
+
+
     /******* PERFORM INVERSE FOURIER TRANSFORM *****************/
     // add the 1/VOLUME factor when converting from k space to real space
 
     memcpy(HIRES_box, HIRES_box_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
 
+
     for (ct=0; ct<KSPACE_NUM_PIXELS; ct++){
         HIRES_box[ct] /= VOLUME;
     }
+
     plan = fftwf_plan_dft_c2r_3d(DIM, DIM, DIM, (fftwf_complex *)HIRES_box, (float *)HIRES_box, FFTW_ESTIMATE);
     fftwf_execute(plan);
     fftwf_destroy_plan(plan);
     fftwf_cleanup();
 
     for (i=0; i<DIM; i++){
+
         for (j=0; j<DIM; j++){
             for (k=0; k<DIM; k++){
+
                 *((float *)HIRES_density + R_FFT_INDEX(i,j,k)) = *((float *)HIRES_box + R_FFT_INDEX(i,j,k));
             }
         }
@@ -3173,6 +3155,7 @@ void ComputeInitialConditions() {
             }
         }
 
+
         if (DIM != HII_DIM)
             filter(HIRES_box, 0, L_FACTOR*BOX_LEN/(HII_DIM+0.0));
 
@@ -3204,6 +3187,7 @@ void ComputeInitialConditions() {
                 }
             }
         }
+
     }
     // write out file
 
@@ -3552,6 +3536,8 @@ void ComputePerturbField(float REDSHIFT_SAMPLE) {
                     HII_i = (unsigned long long)(i/f_pixel_factor);
                     HII_j = (unsigned long long)(j/f_pixel_factor);
                     HII_k = (unsigned long long)(k/f_pixel_factor);
+
+
                     xf += LOWRES_vx[HII_R_INDEX(HII_i, HII_j, HII_k)];
                     yf += LOWRES_vy[HII_R_INDEX(HII_i, HII_j, HII_k)];
                     zf += LOWRES_vz[HII_R_INDEX(HII_i, HII_j, HII_k)];
@@ -3582,6 +3568,7 @@ void ComputePerturbField(float REDSHIFT_SAMPLE) {
                     if (yi < 0) {yi += HII_DIM;}
                     if (zi >= HII_DIM){ zi -= HII_DIM;}
                     if (zi < 0) {zi += HII_DIM;}
+
 
                     // now move the mass
                     *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(xi, yi, zi) ) +=
@@ -3614,7 +3601,9 @@ void ComputePerturbField(float REDSHIFT_SAMPLE) {
                 LOWRES_vz_2LPT[ct] /= velocity_displacement_factor_2LPT;
             }
         }
+
     }
+
 
     /****  Print and convert to velocities *****/
     if (EVOLVE_DENSITY_LINEARLY){
@@ -3711,6 +3700,7 @@ void ComputePerturbField(float REDSHIFT_SAMPLE) {
             }
         }
     }
+
     plan = fftwf_plan_dft_c2r_3d(HII_DIM, HII_DIM, HII_DIM, (fftwf_complex *)LOWRES_density_perturb, (float *)LOWRES_density_perturb, FFTW_ESTIMATE);
     fftwf_execute(plan);
     fftwf_destroy_plan(plan);
@@ -3723,6 +3713,9 @@ void ComputePerturbField(float REDSHIFT_SAMPLE) {
             }
         }
     }
+
+//    printf("%f %f %f %f\n", LOWRES_density_REDSHIFT[0], LOWRES_density_REDSHIFT[100], LOWRES_density_REDSHIFT[200], LOWRES_density_REDSHIFT[500]);
+//    printf("%f %f %f %f\n", LOWRES_velocity_REDSHIFT[0], LOWRES_velocity_REDSHIFT[100], LOWRES_velocity_REDSHIFT[200], LOWRES_velocity_REDSHIFT[500]);
 
     // deallocate
     fftwf_free(LOWRES_density_perturb);
@@ -4128,7 +4121,7 @@ void destroy_21cmMC_HII_arrays(int skip_deallocate) {
     free(xH);
     free(deltax);
     free(Fcoll);
-    free(delta_T);
+    //free(delta_T);
     free(v);
     free(vel_gradient);
     free(p_box);

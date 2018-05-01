@@ -96,47 +96,43 @@ To get help on any subcommand, simply use::
 
     $ py21cmmc <subcommand> --help
 
-The only subcommand that actually runs anything at this point is ``single``, which runs a single instance of 21cmFAST.
+The primary subcommand that actually runs things at this point is ``single``, which runs a single instance of 21cmFAST.
+There are also (for simplicity) subcommands ``init`` and ``perturb_field``, which operate almost exactly as if those
+programs from 21cmFAST had been run. Note that they are redundant however, as ``single`` will run these automatically.
+
+The data files (for init and perturb_field) are by default saved in a ``Boxes/`` directory within the current directory.
+This can be changed with the ``outdir`` argument to the CLI script (more generally, it can be set as the ``DIREC`` value
+in the ``BoxDimStruct`` to any function which computes 21cmFAST boxes).
+
 There is also a subcommand ``defaults`` which will print out all the default values of all parameters used within a
-run of ``single``. For more information on these parameters, look at the classes ``AstroParams``, ``CosmoParams`` and
-``FlagOptions``.
+run of ``single``. For more information on these parameters, look at the classes ``AstroParamStruct``,
+``CosmoParamStruct``, ``FlagOptionStruct`` and ``BoxDimStruct`` from the ``wrapper`` module.
 
 By default, the ``single`` command runs almost exactly the same script as in Brad's March21st version 21CMMC.
 It optionally outputs some plots of the obtained fields/lightcones.
 
 At this point, upon installation, the code creates a ``.py21cmmc`` directory in the user's home. In there is the default
-config file (you can copy it anywhere and change it if you wish), and a ``Boxes/`` directory which will be where the code
-looks for the boxes it needs (this is not true at present).
+config file (you can copy it anywhere and change it if you wish), and the default defaults for all C options and parameters.
 
-You can alternatively just run (not yet!)::
-
-    $ py21cmmc init
-    $ py21cmmc perturb_field
-
-which will run basically the same things as ``./init`` and ``./perturb_field`` respectively, except that the latter
-doesn't need the redshift specification, since this is done in the config file.
 
 Library
 ~~~~~~~
 Typically the user will want to use ``py21cmmc`` as a library -- calling underlying C routines, and obtaining nicely
 wrapped results that are ready for further analysis/plotting. The main wrappers around the underlying C are contained
-in the ``_21cmfast`` package::
+in the ``wrapper`` module, which are imported into the main namespace::
 
-    >>> from py21cmmc._21cmfast import drive_21cmMC
+    >>> from py21cmmc import run_21cmfast, AstroParamStruct,...
 
-This is where the wrappers of the various structures that are passed in/out of the C live. Typically, these will not
-need to be accessed directly. The output of the ``drive_21cmMC`` function is a ``Lightcone`` object (though it need not
-contain a lightcone, it could contain a series of co-eval boxes). The contents of this object should be reasonably
+This is where the wrappers of the various structures that are passed in/out of the C live. Typically, one should only
+really need to use the ``run_21cmfast`` function, unless working in development. The output of the ``run_21cmfast``
+function is either a ``LightCone`` object  or a ``CoEval`` object. The contents of this object should be reasonably
 self-describing.
 
 TODO (Before Release/Merging with master)
 =========================================
 - change all input parameters for driver to actually just access the structs.
 - functions in drive_21cmmc_streamlined need to use less globals, so they can be called individually.
-- users should be able to just call init, or perturb_field etc. from command line.
 - remove GeneratePS from main drive_21cmMC function (make it callable by Python).
-- Add all the MCMC stuff.
-- Change the parameter names python-side? ALL-CAPS names are a bit unpythonic?
 - Documentation
 - Tests
 - All the other little bits that polish the package off.
@@ -153,24 +149,24 @@ The layout of the package
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 I should try to explain how I've gone about modifying this to its current state, from Brad's original version.
 This version is installable, and the Makefile stuff happens in ``setup.py``. The CLI commands live in cli.py.
-At the moment, the ``likelihoods`` subpackage is not being used, but eventually it should hold the code skeletons
-that compute likelihoods given the lightcone objects. Funnily enough, plotting functions live in ``plotting.py``,
-and at the moment, each of them takes as its main argument a ``Lightcone`` object, which is basically what is
-passed back from the C driver. The ``_utils.py`` module contains higher-level wrappers around the C code, but actually
-at the moment it is not really very useful, as I have kept the wrapping quite tight, and most of the work is done
-in the ``_21cmfast`` package.
+Funnily enough, plotting functions live in ``plotting.py``,
+and at the moment, each of them takes as its main argument a ``Lightcone`` or ``CoEval`` object, which is basically what is
+passed back from the C driver. The ``_utils.py`` module contains a couple of functions for writing out the parameter
+files which can be read in by the C driver. I have not made use of these in the rest of the code, however.
 
-The actual Python wrappers of the C, at its basic level, are found in ``_21cmfast/__init__.py`` (so as to make them
-importable directly by ``from _21cmfast import wrappers`` etc.). We could maybe change this in future and have a
-dedicated ``wrappers.py`` module. All the C code lives in this folder and is compiled by ``setup.py`` from here (this
-required changing some of the includes in the C files).
+The actual Python wrappers of the C, at its basic level, are found in ``wrapper.py``. All the C code lives in the
+ ``_21cmfast`` folder and is compiled by ``setup.py`` from here (this required changing some of the includes in the C files).
+
+The wrapping is done with CFFI, rather than the native ctypes. This allows for less redundant specification of types
+etc. The things to watch out for, when using CFFI, is the memory management. If an array is created in Python, and a
+pointer to it is set to a C variable, then that Python variable has to stick around otherwise the memory is effectively
+free'd, and weird stuff happens. This is usually obvious, but is sometimes obscured when setting a C variable to the
+result of a function call, for which no Python variable has ever been specified (and so it quickly gets garbage collected).
 
 As for input parameters to the functions, I've used a series of Structure classes (I've subclassed each of them to give
 defaults for each parameter, so the user doesn't have to worry about most of them). How these work should hopefully be
-reasonably clear from the code. The output is also a Structure (I think this could be better). My overall goal is to wrap
-as small bits of the C code as possible, in a modular way, and in this module, do nothing fancy with them except return
-them in a sensible fashion. The higher-level analysis of these objects should be done outside of this sub-package (say
-in ``_utils`` or ``plotting``).
+reasonably clear from the code.
+
 
 Meta-development stuff
 ~~~~~~~~~~~~~~~~~~~~~~

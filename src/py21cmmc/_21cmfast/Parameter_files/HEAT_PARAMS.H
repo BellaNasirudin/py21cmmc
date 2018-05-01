@@ -118,10 +118,10 @@ Filter choice used for smoothing the linear density field to obtain the collapse
  Filenames of the appropriate output from RECFAST to be used as boundary conditions in Ts.c
  as well as other tables used to compute the spin temperature
 */
-#define RECFAST_FILENAME (const char *) "../External_tables/recfast_LCDM.dat"
-#define STELLAR_SPECTRA_FILENAME (const char *) "../External_tables/stellar_spectra.dat"
-#define KAPPA_EH_FILENAME (const char *) "../External_tables/kappa_eH_table.dat"
-#define KAPPA_PH_FILENAME (const char *) "../External_tables/kappa_pH_table.dat"
+#define RECFAST_FILENAME (const char *) "/home/steven/.py21cmmc/External_tables/recfast_LCDM.dat"
+#define STELLAR_SPECTRA_FILENAME (const char *) "/home/steven/.py21cmmc/External_tables/stellar_spectra.dat"
+#define KAPPA_EH_FILENAME (const char *) "/home/steven/.py21cmmc/External_tables/kappa_eH_table.dat"
+#define KAPPA_PH_FILENAME (const char *) "/home/steven/.py21cmmc/External_tables/kappa_pH_table.dat"
 
 
 /*
