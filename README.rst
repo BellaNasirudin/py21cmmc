@@ -163,6 +163,13 @@ pointer to it is set to a C variable, then that Python variable has to stick aro
 free'd, and weird stuff happens. This is usually obvious, but is sometimes obscured when setting a C variable to the
 result of a function call, for which no Python variable has ever been specified (and so it quickly gets garbage collected).
 
+The building of the C code is done in ``build_cffi.py``. At the moment, it's a bit rough, due to the number of global
+defines that are used. However, the overall structure is such that ``set_source`` literally just includes the main
+source code that needs to be there to run. The ``cdef`` defines the signatures of all global parameters and functions
+which ought to be wrapped. This *should* be as easy as including a header file, but #defines only get captured if you
+specify them manually as static const, and furthermore, there *is* no header file which contains the main functions we
+care about. So they are copied in at this point.
+
 As for input parameters to the functions, I've used a series of Structure classes (I've subclassed each of them to give
 defaults for each parameter, so the user doesn't have to worry about most of them). How these work should hopefully be
 reasonably clear from the code.
