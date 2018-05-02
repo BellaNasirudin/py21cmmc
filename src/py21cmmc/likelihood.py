@@ -9,7 +9,8 @@ import numpy as np
 from decimal import *
 from scipy import interpolate
 from scipy.interpolate import InterpolatedUnivariateSpline
-from ._21cmfast import compute_tau, drive_21cmMC, get_parameters, FlagOptions as TrueFlagOptions
+from . import wrapper as p21c
+
 from ._utils import write_walker_file, write_walker_cosmology_file
 import string
 from copy import deepcopy
@@ -29,7 +30,6 @@ class ThisFlagOptions:
     pass
 
 
-
 class Core21cmFastModule:
     storage_options = {
         "DATADIR": "MCMCData",
@@ -39,7 +39,7 @@ class Core21cmFastModule:
 
     def __init__(self, parameters,
                  storage_options={},
-                 box_dim=None, flag_options=None, astro_params=None, cosmo_params=None):
+                 box_dim={}, flag_options={}, astro_params={}, cosmo_params={}):
 
         # SETUP variables
         self.parameters = parameters
@@ -47,47 +47,68 @@ class Core21cmFastModule:
 
         self.storage_options.update(**storage_options)
 
-        # Set the main, fiducial parameters of 21cmFAST
-        flag_options = flag_options or {}  # Make it a dict if None
-        self.BoxDim, FlagOptions, self.AstroParams, self.CosmoParams = get_parameters(box_dim, flag_options,
-                                                                                           astro_params, cosmo_params)
-
-        # This is a bit of a hack, but the "redshifts" part of FlagOptions is a pointer, and that can't be pickled,
-        # which means that we can't use emcee. So we save a hack copy of it instead.
-
-        self.FlagOptions = ThisFlagOptions()
-        for fl in FlagOptions._fields_:
-            setattr(self.FlagOptions, fl[0], getattr(FlagOptions, fl[0]))
-        self.FlagOptions.redshifts = np.ctypeslib.as_array(FlagOptions.redshifts, shape=(FlagOptions.N_USER_REDSHIFT,))
-
-        self.use_lightcone = self.FlagOptions.USE_LIGHTCONE
-        self.redshift = self.FlagOptions.redshifts  # Remember this is only a list of redshifts if self.use_lightcone
+        # Save the following only as dictionaries (not full Structure objects), so that we can avoid
+        # weird pickling errors.
+        self._box_dim = box_dim
+        self._flag_options = flag_options
+        self._astro_params = astro_params
+        self._cosmo_params = cosmo_params
 
     def setup(self):
-        print("Using 21cmFAST Module")
+        print("Using Core21cmFAST Module")
+
+        self._regen_init = False
+        self._write_init = True
+        self._modifying_cosmo = False
+        # The following ensures that if we are changing cosmology in the MCMC, then we re-do the init
+        # and perturb_field parts on each iteration.
+        for p in self.parameters.keys():
+            if p in p21c.CosmoParamStruct._defaults_.keys():
+                self._flag_options['GenerateNewICs'] = True
+                self._write_init = False
+                self._regen_init = True
+                self._modifying_cosmo = True
+
+        # Here we create the init boxes and perturb boxes, written to file.
+        # If modifying cosmo, we don't want to do this, because we'll create them
+        # on the fly on every iteration. We don't need to save any values in memory because
+        # they will be read from file.
+        if not self._modifying_cosmo:
+            p21c.run_21cmfast(
+                self._flag_options['redshifts'],
+                self._box_dim,
+                self._flag_options,
+                run_ionize=False,
+                write=True, regenerate=self._regen_init
+            )
 
     def __call__(self, ctx):
-        random_ids, AstroParams, CosmoParams = self._update_params(ctx)
-        lightcone = self._run_21cmfast(random_ids, AstroParams, CosmoParams)
+        AstroParams, CosmoParams = self._update_params(ctx)
+        output = self._run_21cmfast(AstroParams, CosmoParams)
 
-        ctx.add('random_ids', random_ids)
-        ctx.add('lightcone', lightcone)
-        ctx.add('AstroParams', AstroParams)
-        ctx.add('CosmoParams', CosmoParams)
-        ctx.add("FlagOptions", self.FlagOptions)
+        ctx.add('output', output)
+        ctx.add('box_dim', self.box_dim())
+        ctx.add('cosmo_params', self.cosmo_params(**CosmoParams))
+        ctx.add("astro_params", self.astro_params(**AstroParams))
+        ctx.add("flag_options", self.flag_options())
 
-    @staticmethod
-    def _get_random_ids(params):
-        # TODO: This would not be needed if we never read parameters from file!
-        np.random.seed()
+    def box_dim(self, **kwargs):
+        dct = dict(self._box_dim,**kwargs)
+        return p21c.BoxDimStruct(**dct)
 
-        random_number = np.random.normal(size=1)
+    def cosmo_params(self, **kwargs):
+        dct = dict(self._cosmo_params, **kwargs)
+        return p21c.CosmoParamStruct(**dct)
 
-        # Create a second unique ID, that being the first variable of the specific walker
-        # (fail-safe against ID overlap; shouldn't happen, but guarding against anyway)
-        Individual_ID = Decimal(repr(random_number[0])).quantize(SIXPLACES)
-        Individual_ID_2 = Decimal(repr(params[0])).quantize(SIXPLACES)
-        return Individual_ID, Individual_ID_2
+    def astro_params(self, **kwargs):
+        dct = dict(self._astro_params, **kwargs)
+        return p21c.AstroParamStruct(self._flag_options.get("INHOMO_RECO", False), **dct)
+
+    def flag_options(self, **kwargs):
+        dct = dict(self._flag_options, **kwargs)
+        #TODO: it is bad that we call astr_params() here without kwargs...
+        return p21c.FlagOptionStruct(self.astro_params().Z_HEAT_MAX, self.astro_params().ZPRIME_STEP_FACTOR,
+                                     **dct)
 
     def _update_params(self, ctx):
         """
@@ -100,57 +121,58 @@ class Core21cmFastModule:
         params = ctx.getParams()
 
         # Copy the main parameter structures (can't write to them otherwise each walker will over-write each other)
-        AstroParams = deepcopy(self.AstroParams)
-        CosmoParams = deepcopy(self.CosmoParams)
 
-        # Generate a unique ID for each thread by sampling a randomly seeded distribution.
-        # Given than file I/O needs to be unique to each thread, it is beneficial to provide a unique
-        # ID in the off chance that two different threads end up with the same walker position (same parameter set)
-        Individual_ID, Individual_ID_2 = self._get_random_ids(params)
+        AstroParams = deepcopy(self._astro_params)
+        CosmoParams = deepcopy(self._cosmo_params)
 
         # Update the Astrophysical/Cosmological Parameters for this iteration
-        # TODO: the params object should allow keys, right?
         for k in params.keys:
-            if hasattr(AstroParams, k):
-                setattr(AstroParams, k, getattr(params,k))
-            elif hasattr(CosmoParams, k):
-                setattr(CosmoParams, k, getattr(params,k))
+            if k in AstroParams:
+                AstroParams[k] = getattr(params,k)
+            elif k in CosmoParams:
+                CosmoParams[k] = getattr(params,k)
+            else:
+                raise ValueError("Something went wrong.")
 
-        if self.FlagOptions.GenerateNewICs:
+        if self._regen_init:
             # A random number between 1 and 10^12 should be sufficient to randomise the ICs
-            CosmoParams.RANDOM_SEED = int(np.random.uniform(low=1, high=1e12, size=1))
+            CosmoParams['RANDOM_SEED'] = int(np.random.uniform(low=1, high=1e12, size=1))
 
-        if self.FlagOptions.READ_FROM_FILE:
-            write_walker_file(self.FlagOptions, AstroParams, (Individual_ID, Individual_ID_2))
-            write_walker_cosmology_file(self.FlagOptions, CosmoParams, (Individual_ID, Individual_ID_2))
+        return AstroParams, CosmoParams
 
-        return (Individual_ID, Individual_ID_2), AstroParams, CosmoParams
-
-    def _run_21cmfast(self, random_ids, AstroParams, CosmoParams):
+    def _run_21cmfast(self, AstroParams, CosmoParams):
         """
-        Actual run the 21cmFAST code.
+        Actually run the 21cmFAST code.
 
         Parameters
         ----------
-        random_ids : tuple of strs
-            Random ids for this instance.
 
         Returns
         -------
         lightcone : Lightcone object.
         """
-        # Convert FlagOptions back to a real FlagOptions class
-        FlagOptions = TrueFlagOptions(**{k:getattr(self.FlagOptions, k) for k in TrueFlagOptions._defaults_.keys()})
-
-        return drive_21cmMC(
-            random_ids,
-            self.BoxDim, FlagOptions,
-            AstroParams, CosmoParams
-        )
+        if self._modifying_cosmo:
+            return p21c.run_21cmfast(
+                self._flag_options['redshifts'],
+                self._box_dim,
+                self._flag_options,
+                AstroParams, CosmoParams,
+                self._write_init, self._regen_init
+            )[0]
+        else:
+            return p21c.run_21cmfast(
+                self._flag_options['redshifts'],
+                self._box_dim,
+                self._flag_options,
+                AstroParams, CosmoParams,
+                self._write_init, self._regen_init,
+            )[0]
 
     def _store_data(self, lightcone, random_ids):
         """
         Write desired data to file for permanent storage.
+
+        Currently unused, but ported from Brad's verison.
 
         Parameters
         ----------
@@ -240,23 +262,49 @@ class Core21cmFastModule:
 
 
 class LikelihoodBase:
-    def __init__(self, box_dim=None, flag_options=None, astro_params=None, cosmo_params=None):
-        # Set the main, fiducial parameters of 21cmFAST
-        flag_options = flag_options or {}  # Make it a dict if None
-        self.BoxDim, FlagOptions, self.AstroParams, self.CosmoParams = get_parameters(box_dim, flag_options,
-                                                                                      astro_params, cosmo_params)
+    def __init__(self, box_dim, flag_options, astro_params, cosmo_params):
+        # Save the following only as dictionaries (not full Structure objects), so that we can avoid
+        # weird pickling errors.
+        self._box_dim = box_dim
+        self._flag_options = flag_options
+        self._astro_params = astro_params
+        self._cosmo_params = cosmo_params
 
-        # This is a bit of a hack, but the "redshifts" part of FlagOptions is a pointer, and that can't be pickled,
-        # which means that we can't use emcee. So we save a hack copy of it instead.
+        # # Set the main, fiducial parameters of 21cmFAST
+        # flag_options = flag_options or {}  # Make it a dict if None
+        # self.BoxDim, FlagOptions, self.AstroParams, self.CosmoParams = get_parameters(box_dim, flag_options,
+        #                                                                               astro_params, cosmo_params)
+        #
+        # # This is a bit of a hack, but the "redshifts" part of FlagOptions is a pointer, and that can't be pickled,
+        # # which means that we can't use emcee. So we save a hack copy of it instead.
+        #
+        # self.FlagOptions = ThisFlagOptions()
+        # for fl in FlagOptions._fields_:
+        #     setattr(self.FlagOptions, fl[0], getattr(FlagOptions, fl[0]))
+        # self.FlagOptions.redshifts = np.ctypeslib.as_array(FlagOptions.redshifts, shape=(FlagOptions.N_USER_REDSHIFT,))
+        #
+        # self.use_lightcone = self.FlagOptions.USE_LIGHTCONE
+        # self.redshift = self.FlagOptions.redshifts  # Remember this is only a list of redshifts if self.use_lightcone
 
-        self.FlagOptions = ThisFlagOptions()
-        for fl in FlagOptions._fields_:
-            setattr(self.FlagOptions, fl[0], getattr(FlagOptions, fl[0]))
-        self.FlagOptions.redshifts = np.ctypeslib.as_array(FlagOptions.redshifts, shape=(FlagOptions.N_USER_REDSHIFT,))
+        self.use_lightcone = self.flag_options().USE_LIGHTCONE
+        self.redshift = self.flag_options().redshifts
 
-        self.use_lightcone = self.FlagOptions.USE_LIGHTCONE
-        self.redshift = self.FlagOptions.redshifts  # Remember this is only a list of redshifts if self.use_lightcone
+    def box_dim(self, **kwargs):
+        dct = dict(self._box_dim,**kwargs)
+        return p21c.BoxDimStruct(**dct)
 
+    def cosmo_params(self, **kwargs):
+        dct = dict(self._cosmo_params, **kwargs)
+        return p21c.CosmoParamStruct(**dct)
+
+    def astro_params(self, **kwargs):
+        dct = dict(self._astro_params, **kwargs)
+        return p21c.AstroParamStruct(self._flag_options.get("INHOMO_RECO", False), **dct)
+
+    def flag_options(self, **kwargs):
+        dct = dict(self._flag_options, **kwargs)
+        return p21c.FlagOptionStruct(self.astro_params().Z_HEAT_MAX, self.astro_params().ZPRIME_STEP_FACTOR,
+                                     **dct)
 
     def computeLikelihood(self, ctx):
         raise NotImplementedError("The Base likelihood should never be used directly!")
@@ -282,19 +330,19 @@ class LikelihoodPlanck(LikelihoodBase):
         """
         Contribution to the likelihood arising from Planck (2016) (https://arxiv.org/abs/1605.03507)
         """
-        READ_FROM_FILE = ctx['FlagOptions'].READ_FROM_FILE
-        PRINT_FILES = ctx['FlagOptions'].PRINT_FILES
+        # READ_FROM_FILE = ctx.get('flag_options').READ_FROM_FILE
+        # PRINT_FILES = ctx.get('FlagOptions').PRINT_FILES
 
         # Extract relevant info from the context.
-        random_ids = ctx.get("random_ids")
-        lightcone = ctx.get("lightcone")
+        output = ctx.get("output")
 
-        if lightcone.params.n_redshifts < 3:
+        if len(output.redshifts) < 3:
+            print(output.redshifts)
             raise ValueError("You cannot use the Planck prior likelihood with less than 3 redshifts")
 
         # The linear interpolation/extrapolation function, taking as input the redshifts supplied by the user and
         # the corresponding neutral fractions recovered for the specific EoR parameter set
-        LinearInterpolationFunction = InterpolatedUnivariateSpline(lightcone.redshifts, lightcone.average_nf, k=1)
+        LinearInterpolationFunction = InterpolatedUnivariateSpline(output.redshifts, output.average_nf, k=1)
 
         ZExtrapVals = np.zeros(self.nZinterp)
         XHI_ExtrapVals = np.zeros(self.nZinterp)
@@ -311,8 +359,7 @@ class LikelihoodPlanck(LikelihoodBase):
                 XHI_ExtrapVals[i] = 0.0
 
         # Set up the arguments for calculating the estimate of the optical depth. Once again, performed using command line code.
-        tau_value = compute_tau(random_ids, ZExtrapVals, XHI_ExtrapVals, ctx['CosmoParams'],
-                                READ_FROM_FILE, PRINT_FILES)
+        tau_value = p21c.compute_tau(ZExtrapVals, XHI_ExtrapVals, ctx.get('cosmo_params'))
 
         # remove the temporary files (this depends on tau being run, so don't move it to _store_data())
         # if self.FlagOptions.PRINT_FILES:
@@ -347,15 +394,13 @@ class LikelihoodMcGreer(LikelihoodBase):
         Limit on the IGM neutral fraction at z = 5.9, from dark pixels by I. McGreer et al.
         (2015) (http://adsabs.harvard.edu/abs/2015MNRAS.447..499M)
         """
-        lightcone = ctx.get("lightcone")
-
-
+        lightcone = ctx.get("output")
 
         if self.McGreer_Redshift in lightcone.redshifts:
             for i in range(len(lightcone.redshifts)):
                 if lightcone.redshifts[i] == self.McGreer_Redshift:
                     McGreer_NF = lightcone.average_nf[i]
-        elif lightcone.params.n_redshifts > 2:
+        elif len(lightcone.redshifts) > 2:
             # The linear interpolation/extrapolation function, taking as input the redshifts supplied by the user and
             # the corresponding neutral fractions recovered for the specific EoR parameter set
             LinearInterpolationFunction = InterpolatedUnivariateSpline(lightcone.redshifts, lightcone.average_nf, k=1)
@@ -380,7 +425,6 @@ class LikelihoodGreig(LikelihoodBase):
 
         super().__init__(*args, **kwargs)
 
-
     def setup(self):
         with open(path.expanduser(path.join("~",'.py21cmmc','PriorData', "NeutralFractionsForPDF.out")), 'rb') as handle:
             self.NFValsQSO = pickle.loads(handle.read())
@@ -399,7 +443,7 @@ class LikelihoodGreig(LikelihoodBase):
         Greig et al (2016) (http://arxiv.org/abs/1606.00441)
         """
 
-        lightcone = ctx.get("lightcone")
+        lightcone = ctx.get("output")
 
         Redshifts = lightcone.redshifts
         AveNF = lightcone.average_nf
@@ -413,7 +457,7 @@ class LikelihoodGreig(LikelihoodBase):
                 if Redshifts[i] == self.QSO_Redshift:
                     NF_QSO = AveNF[i]
 
-        elif lightcone.params.n_redshifts > 2:
+        elif len(lightcone.redshifts) > 2:
 
             # Check the redshift range input by the user to determine whether to interpolate or extrapolate the IGM
             # neutral fraction to the QSO redshift
@@ -513,10 +557,10 @@ class LikelihoodGlobal(LikelihoodBase):
         """
         Compute the likelihood, given the lightcone output from 21cmFAST.
         """
-        lightcone = ctx.get("lightcone")
+        lightcone = ctx.get("output")
 
         # Get some useful variables out of the Lightcone box
-        NumRedshifts = lightcone.params.n_redshifts
+        NumRedshifts = len(lightcone.redshifts)
         Redshifts = lightcone.redshifts
         AveTb = lightcone.average_Tb
 
@@ -593,25 +637,6 @@ class Likelihood1DPowerMultiZ(LikelihoodBase):
         self.model_name = model_name
         self.mock_dir = mock_dir or path.expanduser(path.join("~", '.py21cmmc'))
 
-        if self.use_lightcone:
-            self.obs_filename = path.join(self.mock_dir, 'MockData', 'LightCone21cmPS_%s_600Mpc_400.txt'%self.model_name)
-            self.obs_error_filename = path.join(self.mock_dir, 'NoiseData',
-                                                'LightCone21cmPS_Error_%s_%s_%s_600Mpc_400.txt'%(self.model_name, self.telescope, self.duration))
-
-        else:
-            if not data_redshifts:
-                raise ValueError("If not using a lightcone, you must pass at least some data redshifts")
-
-            if any([z not in self.redshift for z in data_redshifts]):
-                raise ValueError("One or more data redshifts were not in the computed redshifts %s %s."%(data_redshifts, self.redshift))
-
-            self.obs_filename = path.join(self.mock_dir, 'MockData', self.model_name, "Co-Eval", 'MockObs_%s_PS_200Mpc_'%self.model_name)
-            self.obs_error_filename = path.join(self.mock_dir, 'NoiseData', self.model_name, "Co-Eval",
-                                                'TotalError_%s_PS_200Mpc.txt'%self.telescope)
-
-        if not path.exists(self.obs_filename) or not path.exists(self.obs_error_filename):
-            raise ValueError("Those mock observations and/or noise files do not exist: %s %s"%(self.obs_filename, self.obs_error_filename))
-
     def setup(self):
         """
         Contains any setup specific to this likelihood, that should only be performed once. Must save variables
@@ -632,13 +657,47 @@ class Likelihood1DPowerMultiZ(LikelihoodBase):
 
         if self.log_sampling:
             self.kSpline = 10 ** kSpline
+        else:
+            self.kSpline = kSpline
+
+        self.k_values, self.PS_values, self.Error_k_values, self.PS_Error = self.define_data()
+
+    def define_data(self):
+        """
+        An over-rideable method which should return the k, P, and error on power spectrum at each redshift. Nominally,
+        reads these in from files.
+
+        Returns
+        -------
+        k_values, PS_values, Error_k_values, PS_Error
+            Must return these values.
+        """
+
+        if self.use_lightcone:
+            self.obs_filename = path.join(self.mock_dir, 'MockData', 'LightCone21cmPS_%s_600Mpc_400.txt'%self.model_name)
+            self.obs_error_filename = path.join(self.mock_dir, 'NoiseData',
+                                                'LightCone21cmPS_Error_%s_%s_%s_600Mpc_400.txt'%(self.model_name, self.telescope, self.duration))
+
+        else:
+            if not self.data_redshifts:
+                raise ValueError("If not using a lightcone, you must pass at least some data redshifts")
+
+            if any([z not in self.redshift for z in self.data_redshifts]):
+                raise ValueError("One or more data redshifts were not in the computed redshifts %s %s."%(self.data_redshifts, self.redshift))
+
+            self.obs_filename = path.join(self.mock_dir, 'MockData', self.model_name, "Co-Eval", 'MockObs_%s_PS_200Mpc_'%self.model_name)
+            self.obs_error_filename = path.join(self.mock_dir, 'NoiseData', self.model_name, "Co-Eval",
+                                                'TotalError_%s_PS_200Mpc.txt'%self.telescope)
+
+        if not path.exists(self.obs_filename) or not path.exists(self.obs_error_filename):
+            raise ValueError("Those mock observations and/or noise files do not exist: %s %s"%(self.obs_filename, self.obs_error_filename))
 
 
         # Read in the mock 21cm PS observation. Read in both k and the dimensionless PS.
         # These are needed for performing the chi^2 statistic for the likelihood. NOTE: To calculate the likelihood
         # statistic a spline is performed for each of the mock PS, simulated PS and the Error PS
-        self.k_values = []
-        self.PS_values = []
+        k_values = []
+        PS_values = []
 
 
         if self.use_lightcone:
@@ -651,8 +710,8 @@ class Likelihood1DPowerMultiZ(LikelihoodBase):
 
             for fl in subfiles:
                 mock = np.loadtxt('%s/%s' % (path.dirname(self.obs_filename), fl), usecols=(0,1))
-                self.k_values.append(mock[:, 0])
-                self.PS_values.append(mock[:, 1])
+                k_values.append(mock[:, 0])
+                PS_values.append(mock[:, 1])
 
         else:
 
@@ -663,16 +722,16 @@ class Likelihood1DPowerMultiZ(LikelihoodBase):
             for i,z in enumerate(self.data_redshifts):
                 mock = np.loadtxt(self.obs_filename+"%s"%z, usecols=(0,1))
 
-                self.k_values.append(mock[:, 0])
-                self.PS_values.append(mock[:, 1])
+                k_values.append(mock[:, 0])
+                PS_values.append(mock[:, 1])
 
-        self.k_values = np.array(self.k_values)
-        self.PS_values = np.array(self.PS_values)
+        k_values = np.array(k_values)
+        PS_values = np.array(PS_values)
 
 
         ###### Read in the data for the telescope sensitivites ######
-        self.Error_k_values = []
-        self.PS_Error = []
+        Error_k_values = []
+        PS_Error = []
 
         # Total noise sensitivity as computed from 21cmSense.
         if self.use_lightcone:
@@ -683,24 +742,25 @@ class Likelihood1DPowerMultiZ(LikelihoodBase):
             for i in range(len(subfiles)):
                 errs = np.loadtxt('%s/%s' % (path.dirname(self.obs_error_filename), LightConeErrors[i]), usecols=(0,1))
 
-                self.Error_k_values.append(errs[:,0])
-                self.PS_Error.append(errs[:,1])
+                Error_k_values.append(errs[:,0])
+                PS_Error.append(errs[:,1])
 
         else:
 
             for i in range(len(self.data_redshifts)):
                 errs = np.loadtxt(self.obs_error_filename, usecols=(0,1))
-                self.Error_k_values.append(errs[:,0])
-                self.PS_Error.append(errs[:,1])
+                Error_k_values.append(errs[:,0])
+                PS_Error.append(errs[:,1])
 
-        self.Error_k_values = np.array(self.Error_k_values)
-        self.PS_Error = np.array(self.PS_Error)
+        Error_k_values = np.array(Error_k_values)
+        PS_Error = np.array(PS_Error)
+        return k_values, PS_values, Error_k_values, PS_Error
 
     def computeLikelihood(self, ctx):
         """
         Compute the likelihood, given the lightcone output from 21cmFAST.
         """
-        lightcone = ctx.get("lightcone")
+        lightcone = ctx.get("output")
 
         # Get some useful variables out of the Lightcone box
         PS_Data = lightcone.power_spectrum
@@ -708,11 +768,12 @@ class Likelihood1DPowerMultiZ(LikelihoodBase):
 
         total_sum = 0
 
+        print(lightcone.power_spectrum, lightcone.k)
         # Note here that the usage of len(redshift) uses the number of mock lightcone 21cm PS if use_lightcone was set to True.
         for i,z in enumerate(self.data_redshifts):
 
             if not self.use_lightcone:
-                redshift_index = lightcone.redshifts.index(z)
+                redshift_index = np.where(lightcone.redshifts==z)[0][0]
             else:
                 redshift_index = i
 
@@ -744,3 +805,41 @@ class Likelihood1DPowerMultiZ(LikelihoodBase):
                     np.sqrt(ErrorPS_val ** 2. + (self.ModUncert * ModelPS_val) ** 2.)))
 
         return -0.5 * total_sum  # , nf_vals
+
+
+class Likelihood1DPowerNoErrors(Likelihood1DPowerMultiZ):
+    """
+    A simple likelihood model that generates "data" as a simple power spectrum from fiducial parameters,
+    and applies no noise. Use for testing.
+    """
+
+    def define_data(self):
+        output = p21c.run_21cmfast(self._flag_options['redshifts'], self._box_dim, self._flag_options,
+                                   self._astro_params, self._cosmo_params)[0]
+
+        print(output.power_spectrum, output.k)
+        nz = len(self._flag_options['redshifts'])
+        return np.repeat(output.k, nz).reshape((len(output.k), nz)).T, output.power_spectrum, np.repeat(output.k, nz).reshape((len(output.k), nz)).T, np.ones_like(output.power_spectrum)
+
+from powerbox.tools import get_power
+from astropy.cosmology import Planck15
+class Likelihood1DPowerLightconeNoErrors(LikelihoodBase):
+
+    def setup(self):
+        if not self.flag_options().USE_LIGHTCONE:
+            raise ValueError("You need to use a lightcone for this Likelihood module")
+
+        output = p21c.run_21cmfast(self._flag_options['redshifts'], self._box_dim, self._flag_options,
+                                   self._astro_params, self._cosmo_params)[0]
+
+        los_size = Planck15.comoving_distance(output.redshifts.max()) - Planck15.comoving_distance(output.redshifts.min())
+        self.p_k, self.k = get_power(output.lightcone_box, (output.box_len, output.box_len,  los_size.value))
+
+    def computeLikelihood(self, ctx):
+        output = ctx.get("output")
+
+        los_size = Planck15.comoving_distance(output.redshifts.max()) - Planck15.comoving_distance(output.redshifts.min())
+        pk, k = get_power(output.lightcone_box, (output.box_len, output.box_len,  los_size.value))
+
+        return - 0.5 * np.sum((pk - self.p_k)**2)
+

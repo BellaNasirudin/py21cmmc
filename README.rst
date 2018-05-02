@@ -111,6 +111,11 @@ run of ``single``. For more information on these parameters, look at the classes
 By default, the ``single`` command runs almost exactly the same script as in Brad's March21st version 21CMMC.
 It optionally outputs some plots of the obtained fields/lightcones.
 
+There is also an ``mcmc`` subcommand, which runs MCMC, using an input config file (by default, it is the
+``example_config_mcmc.yml`` file provided in the top-level directory of this repository). This allows a range of options
+to be set, and a range of likelihoods to be used, each of which can access the core outputs of 21cmFAST to build the
+likelihood. This enables one to insert code which can perform arbitrary analyses on the lightcone, for example, and
+use that for the likelihood.
 At this point, upon installation, the code creates a ``.py21cmmc`` directory in the user's home. In there is the default
 config file (you can copy it anywhere and change it if you wish), and the default defaults for all C options and parameters.
 
@@ -127,6 +132,11 @@ This is where the wrappers of the various structures that are passed in/out of t
 really need to use the ``run_21cmfast`` function, unless working in development. The output of the ``run_21cmfast``
 function is either a ``LightCone`` object  or a ``CoEval`` object. The contents of this object should be reasonably
 self-describing.
+
+The ``likelihood`` module contains various Likelihood classes, written to be useable within the CosmoHammer framework.
+One can easily build their own CosmoHammer MCMC framework using these classes, or use the provided function in the ``mcmc``
+module to perform MCMC on a select subset of the likelihoods. Refer to the documentation of the ``likelihood`` module
+for more details.
 
 TODO (Before Release/Merging with master)
 =========================================

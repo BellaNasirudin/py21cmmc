@@ -1672,7 +1672,7 @@ void ComputeIonisationBoxes(int sample_index, float REDSHIFT_SAMPLE, float PREV_
         // Read the desnity field of this redshift from file
         sprintf(filename, "%s/Boxes/updated_smoothed_deltax_z%06.2f_%i_%.0fMpc", DIREC, REDSHIFT_SAMPLE, HII_DIM, BOX_LEN);
         F = fopen(filename, "rb");
-        printf("%s\n", filename);
+
         for (i=0; i<HII_DIM; i++){
             for (j=0; j<HII_DIM; j++){
                 for (k=0; k<HII_DIM; k++){

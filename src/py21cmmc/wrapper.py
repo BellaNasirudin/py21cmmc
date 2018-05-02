@@ -15,6 +15,7 @@ from ._asarray import asarray
 from os import path, mkdir
 from tqdm import tqdm
 
+
 def _pyalloc(name, length, tp=None):
     "A function to allocate memory in python and set it to a C variable."
     v = getattr(lib, name)
@@ -28,7 +29,7 @@ def _pyalloc(name, length, tp=None):
     tp = tp or typemap[ffi.getctype(ffi.typeof(v))]
 
     if isinstance(length, int):
-        x = np.zeros(length, dtype = tp)
+        x = np.zeros(length, dtype=tp)
     else:
         x = length
     setattr(lib, name, ffi.cast(ffi.typeof(v), ffi.from_buffer(x)))
@@ -64,7 +65,7 @@ class _StructWithDefaults:
             except AttributeError:
                 # The attribute has been defined as a property, save it as a hidden variable
 
-                setattr(self, "_"+k, v)
+                setattr(self, "_" + k, v)
 
         self._logic()
 
@@ -82,13 +83,13 @@ class _StructWithDefaults:
         if hasattr(self, "_obj"):
             return self._obj
 
-        self._obj = ffi.new("struct "+self._name+"*")
+        self._obj = ffi.new("struct " + self._name + "*")
         self._logic()
         for fld in ffi.typeof(self._obj[0]).fields:
             try:
                 setattr(self._obj, fld[0], getattr(self, fld[0]))
             except TypeError:
-                print("For key %s, value %s:"%(fld[0], getattr(self, fld[0])))
+                print("For key %s, value %s:" % (fld[0], getattr(self, fld[0])))
                 raise
         return self._obj
 
@@ -108,7 +109,7 @@ class _StructWithDefaults:
     def set_globals(self):
         obj = ffi.new("struct " + self._name + "*")
 
-        for k,v in self.c_initializer.items():
+        for k, v in self.c_initializer.items():
             try:
                 setattr(lib, k, v)
             except TypeError:
@@ -230,7 +231,8 @@ class FlagOptionStruct(_StructWithDefaults):
             )
 
         if self.USE_FCOLL_IONISATION_TABLE and self.INHOMO_RECO:
-            raise ValueError("Cannot use the f_coll interpolation table for find_hii_bubbles with inhomogeneous recombinations")
+            raise ValueError(
+                "Cannot use the f_coll interpolation table for find_hii_bubbles with inhomogeneous recombinations")
 
         if self.INHOMO_RECO and self.USE_TS_FLUCT:
             raise ValueError(
@@ -289,15 +291,15 @@ class AstroParamStruct(_StructWithDefaults):
 
     @property
     def ION_Tvir_MIN(self):
-        return 10**self._ION_Tvir_MIN
+        return 10 ** self._ION_Tvir_MIN
 
     @property
     def L_X(self):
-        return 10**self._L_X
+        return 10 ** self._L_X
 
     @property
     def X_RAY_Tvir_MIN(self):
-        return 10**self._X_RAY_Tvir_MIN if self._X_RAY_Tvir_MIN else self.ION_Tvir_MIN
+        return 10 ** self._X_RAY_Tvir_MIN if self._X_RAY_Tvir_MIN else self.ION_Tvir_MIN
 
     @property
     def NU_X_THRESH(self):
@@ -341,7 +343,7 @@ class CosmoParamStruct(_StructWithDefaults):
     @property
     def RANDOM_SEED(self):
         if not self._RANDOM_SEED:
-            return int(np.random.randint(1,1e12))
+            return int(np.random.randint(1, 1e12))
         else:
             return self._RANDOM_SEED
 
@@ -371,7 +373,7 @@ class BoxDimStruct(_StructWithDefaults):
 
     @property
     def DIM(self):
-        return self._DIM or 4*self.HII_DIM
+        return self._DIM or 4 * self.HII_DIM
 
 
 class LightCone:
@@ -379,16 +381,17 @@ class LightCone:
     This class takes numpy arrays, which are the raw input arrays defining the quantities, and just does some massaging
     to make them easier to handle in Python.
     """
-    def __init__(self, redshifts, average_nf, average_Tb, power, k, lightcone_box, n_ps, num_bins, HII_DIM):
+
+    def __init__(self, redshifts, average_nf, average_Tb, power, k, lightcone_box, n_ps, num_bins, HII_DIM, box_len):
 
         self.redshifts = redshifts[::-1]
         self.average_nf = average_nf[::-1]
         self.average_Tb = average_Tb[::-1]
 
-
         k_offset = 2
         self.power_spectrum = np.zeros((n_ps, num_bins - k_offset))
         self.k = np.zeros(num_bins - k_offset)
+
 
         for i in range(n_ps):
             for j in range(num_bins - k_offset):
@@ -397,12 +400,13 @@ class LightCone:
                     self.k[j] = (k[(j + k_offset) + num_bins * 0])
 
         self.lightcone_box = lightcone_box.reshape(
-            (HII_DIM , HII_DIM , -1)
+            (HII_DIM, HII_DIM, -1)
         )
+        self.box_len = box_len
 
 
 class CoEval:
-    def __init__(self, redshifts, ave_nf, ave_Tb, delta_T, power_k = None, power_spectrum=None, ps_bins=None):
+    def __init__(self, redshifts, ave_nf, ave_Tb, delta_T, power_k=None, power_spectrum=None, ps_bins=None):
         """
         A data class representing the returned co-eval box information from the MCMC driver.
         """
@@ -413,6 +417,7 @@ class CoEval:
         self.average_Tb = ave_Tb
 
         k_offset = 1
+        print(len(redshifts), ps_bins, k_offset)
         self.power_spectrum = np.zeros((self.n_redshifts, ps_bins - k_offset))
         self.k = np.zeros(ps_bins - k_offset)
         for i in range(len(redshifts)):
@@ -424,30 +429,30 @@ class CoEval:
         self.delta_T = delta_T
 
 
-def drive_21cmmc(random_ids, box_dim, flag_options, astro_params, cosmo_params):
-    """
-    Wrapper of drive_21CMMC.
-
-    Returns
-    -------
-
-    """
-    box_dim = BoxDimStruct(**box_dim).c_initializer
-    flag_options = FlagOptionStruct(**flag_options).c_initializer
-    astro_params = AstroParamStruct(flag_options['INHOMO_RECO'], **astro_params).c_initializer
-    cosmo_params = CosmoParamStruct(**cosmo_params).c_initializer
-
-    if flag_options['READ_FROM_FILE']:
-        write_walker_file(flag_options, astro_params, random_ids)
-        write_walker_cosmology_file(flag_options, cosmo_params, random_ids)
-
-    out = lib.drive_21CMMC(
-        random_ids[0].encode(),
-        random_ids[1].encode(),
-        box_dim, flag_options, astro_params, cosmo_params
-    )
-
-    return LightCone(out)
+# def drive_21cmmc(random_ids, box_dim, flag_options, astro_params, cosmo_params):
+#     """
+#     Wrapper of drive_21CMMC.
+#
+#     Returns
+#     -------
+#
+#     """
+#     box_dim = BoxDimStruct(**box_dim).c_initializer
+#     flag_options = FlagOptionStruct(**flag_options).c_initializer
+#     astro_params = AstroParamStruct(flag_options['INHOMO_RECO'], **astro_params).c_initializer
+#     cosmo_params = CosmoParamStruct(**cosmo_params).c_initializer
+#
+#     if flag_options['READ_FROM_FILE']:
+#         write_walker_file(flag_options, astro_params, random_ids)
+#         write_walker_cosmology_file(flag_options, cosmo_params, random_ids)
+#
+#     out = lib.drive_21CMMC(
+#         random_ids[0].encode(),
+#         random_ids[1].encode(),
+#         box_dim, flag_options, astro_params, cosmo_params
+#     )
+#
+#     return LightCone(out)
 
 
 def compute_initial_conditions(box_dim, cosmo_params, regenerate=False, write=True, dir='.'):
@@ -462,27 +467,32 @@ def compute_initial_conditions(box_dim, cosmo_params, regenerate=False, write=Tr
         pass
 
     # The file where this data should be stored.
-    #fl = path.join("Boxes", "init_boxes_%s_%.0fMpc.npz" % (box_dim.HII_DIM, box_dim.BOX_LEN)))
+    # fl = path.join("Boxes", "init_boxes_%s_%.0fMpc.npz" % (box_dim.HII_DIM, box_dim.BOX_LEN)))
 
     suffix = "_{HII_DIM}_{BOX_LEN:.0f}Mpc".format(**box_dim.c_initializer)
     files = {
-        'LOWRES_density': "smoothed_deltax_z0.00"+suffix,
-        "LOWRES_vx":'vxoverddot'+suffix,
-        "LOWRES_vy": 'vyoverddot'+suffix,
-        "LOWRES_vz":'vzoverddot'+suffix,
-        "LOWRES_vx_2LPT":'vxoverddot_2LPT'+suffix,
-        "LOWRES_vy_2LPT":'vyoverddot_2LPT'+suffix,
-        "LOWRES_vz_2LPT":'vzoverddot_2LPT'+suffix,
-        "HIRES_density":'deltax_z0.00_{DIM}_{BOX_LEN}Mpc'.format(**box_dim.c_initializer)
+        'LOWRES_density': "smoothed_deltax_z0.00" + suffix,
+        "LOWRES_vx": 'vxoverddot' + suffix,
+        "LOWRES_vy": 'vyoverddot' + suffix,
+        "LOWRES_vz": 'vzoverddot' + suffix,
+        "LOWRES_vx_2LPT": 'vxoverddot_2LPT' + suffix,
+        "LOWRES_vy_2LPT": 'vyoverddot_2LPT' + suffix,
+        "LOWRES_vz_2LPT": 'vzoverddot_2LPT' + suffix,
+        "HIRES_density": 'deltax_z0.00_{DIM}_{BOX_LEN}Mpc'.format(**box_dim.c_initializer)
     }
-
 
     if not regenerate:
         # Try to find the box
         # TODO: this would probably be better with a hash or something.
         try:
-            return {k:np.fromfile(path.join(dir, 'Boxes', v)) for k,v in files.items()}
-            #return np.load(fl)
+            init_boxes = {k: np.fromfile(path.join(dir, 'Boxes', v)) for k, v in files.items()}
+            # give these to their C variables, so that the behaviour of this function is the same
+            # whether or not the boxes already exist.
+            for k, v in init_boxes.items():
+                _pyalloc(k, v)
+
+            return init_boxes
+            # return np.load(fl)
         except FileNotFoundError:
             print("No init boxes found, computing...")
 
@@ -490,15 +500,14 @@ def compute_initial_conditions(box_dim, cosmo_params, regenerate=False, write=Tr
     hires_density = _pyalloc("HIRES_density", lib.TOT_FFT_NUM_PIXELS)
     lib.ComputeInitialConditions()
 
-    dct = {k:asarray(ffi, getattr(lib,k), lib.HII_TOT_NUM_PIXELS)
+    dct = {k: asarray(ffi, getattr(lib, k), lib.HII_TOT_NUM_PIXELS)
            for k in ['LOWRES_density', "LOWRES_vx", "LOWRES_vy", "LOWRES_vz", "LOWRES_vx_2LPT",
                      "LOWRES_vy_2LPT", "LOWRES_vz_2LPT"]}
     dct["HIRES_density"] = hires_density
 
-
     if write:
         # Write each of the boxes to file, in the same way as 21cmFAST.
-        for k,v in dct.items():
+        for k, v in dct.items():
             v.tofile(path.join(dir, 'Boxes', files[k]))
 
     # Return some of the filled globals.
@@ -507,7 +516,7 @@ def compute_initial_conditions(box_dim, cosmo_params, regenerate=False, write=Tr
     return dct
 
 
-def compute_perturb_field(redshift, init_boxes, velocity_component=0, write=True, regenerate=False, dir='.'):
+def compute_perturb_field(redshift, init_boxes, velocity_component=0, write=True, regenerate=False, read=False, dir='.'):
     """
     Note: the returned arrays are pointers to memory which C owns, and will overwrite if this function is called again.
           If the return values are used, they should be copied explicitly.
@@ -516,21 +525,25 @@ def compute_perturb_field(redshift, init_boxes, velocity_component=0, write=True
     lib which are accessed here.
 
     """
-    suffix = "_z{redshift:06.2f}_{HII_DIM}_{BOX_LEN:.0f}Mpc".format(redshift=redshift, HII_DIM = lib.HII_DIM, BOX_LEN=lib.BOX_LEN)
+    suffix = "_z{redshift:06.2f}_{HII_DIM}_{BOX_LEN:.0f}Mpc".format(redshift=redshift, HII_DIM=lib.HII_DIM,
+                                                                    BOX_LEN=lib.BOX_LEN)
     files = {
-        'LOWRES_density_REDSHIFT': "updated_smoothed_deltax"+suffix,
-        'LOWRES_velocity_REDSHIFT': "updated_v{VEL_COMPONENT}".format(VEL_COMPONENT='xyz'[velocity_component])+suffix
+        'LOWRES_density_REDSHIFT': "updated_smoothed_deltax" + suffix,
+        'LOWRES_velocity_REDSHIFT': "updated_v{VEL_COMPONENT}".format(VEL_COMPONENT='xyz'[velocity_component]) + suffix
     }
 
     if not regenerate:
         # Try to find the boxes
         # TODO: this would probably be better with a hash or something.
-        try:
-            return {k:np.fromfile(path.join(dir, 'Boxes', v)) for k,v in files.items()}
-        except:
-            pass
+        if all([path.exists(path.join(dir, 'Boxes', v)) for v in files.values()]):
+            if read:
+                return {k: np.fromfile(path.join(dir, 'Boxes', v)) for k, v in files.items()}
+            else:
+                return
 
     # Ensure we set the init_boxes into the global variables
+    # If the init_boxes has been gotten from compute_initial_conditions, then it's already allocated, but
+    # that should be ok (just resetting it to the same thing).
     init_boxes = dict(init_boxes)
     for k, v in init_boxes.items():
         _pyalloc(k, v)
@@ -541,21 +554,20 @@ def compute_perturb_field(redshift, init_boxes, velocity_component=0, write=True
 
     lib.ComputePerturbField(redshift)
     dct = dict(
-        LOWRES_density_REDSHIFT = lowres_density,
-        LOWRES_velocity_REDSHIFT = lowres_vel
+        LOWRES_density_REDSHIFT=lowres_density,
+        LOWRES_velocity_REDSHIFT=lowres_vel
     )
 
     if write:
         # Write each of the boxes to file, in the same way as 21cmFAST.
-        for k,v in dct.items():
+        for k, v in dct.items():
             v.tofile(path.join(dir, 'Boxes', files[k]))
     return dct
 
 
 def _setup_lightcone():
-
-    lib.dR = (lib.BOX_LEN/ lib.HII_DIM) * lib.CMperMPC
-    lib.LC_BOX_PADDING = int(np.ceil(lib.LC_BOX_PADDING_IN_MPC/(lib.BOX_LEN*lib.HII_DIM)))
+    lib.dR = (lib.BOX_LEN / lib.HII_DIM) * lib.CMperMPC
+    lib.LC_BOX_PADDING = int(np.ceil(lib.LC_BOX_PADDING_IN_MPC / (lib.BOX_LEN * lib.HII_DIM)))
     lib.N_USER_REDSHIFT_LC = lib.N_USER_REDSHIFT - 1
 
     redshifts_lc = _pyalloc("redshifts_LC", lib.N_USER_REDSHIFT_LC)
@@ -572,14 +584,14 @@ def _setup_lightcone():
 
     i = 0
     while lib.z1_LC < lib.redshifts[0]:
-        lib.z2_LC = lib.redshifts[lib.N_USER_REDSHIFT-2-i]
+        lib.z2_LC = lib.redshifts[lib.N_USER_REDSHIFT - 2 - i]
         while (lib.z_LC < lib.z2_LC):
             slice_redshifts[lib.total_slice_ct] = lib.z_LC
             full_index_LC[lib.total_slice_ct] = lib.total_slice_ct
             if slice_ct == lib.HII_DIM:
                 lib.end_z = lib.z_LC
                 lib.num_boxes_interp += 1
-                slice_ct=0
+                slice_ct = 0
 
             slice_ct += 1
             lib.total_slice_ct += 1
@@ -590,7 +602,7 @@ def _setup_lightcone():
             start_index_lc[i] = 0
             end_index_lc[i] = slice_ct
         else:
-            start_index_lc[i] = end_index_lc[i-1]
+            start_index_lc[i] = end_index_lc[i - 1]
             end_index_lc[i] = slice_ct
 
         lib.z1_LC = lib.z2_LC
@@ -604,12 +616,13 @@ def _setup_lightcone():
     box_z1 = _pyalloc("box_z1", lib.HII_TOT_NUM_PIXELS)
     box_z2 = _pyalloc("box_z2", lib.HII_TOT_NUM_PIXELS)
     box_interpolate = _pyalloc("box_interpolate", lib.HII_TOT_NUM_PIXELS)
-    box_interpolate_remainder = _pyalloc("box_interpolate_remainder", lib.HII_DIM*lib.HII_DIM*lib.remainder_LC)
+    box_interpolate_remainder = _pyalloc("box_interpolate_remainder", lib.HII_DIM * lib.HII_DIM * lib.remainder_LC)
 
     # Now, we need to remember to return every allocated memory space that still gets used elsewhere (just to keep it
     # alive)
     return (redshifts_lc, start_index_lc, end_index_lc, full_index_LC, slice_redshifts, box_z1, box_z2, box_interpolate,
             box_interpolate_remainder)
+
 
 def _setup_erf():
     lib.erfc_arg_min = -15.0
@@ -630,7 +643,8 @@ def _setup_erf():
 
     return (ERFC_VALS, ERFC_VALS_DIFF)
 
-def compute_ionisation_boxes(perturb_boxes, flag_options={}, astro_params = {}, write=True, regenerate=False):
+
+def compute_ionisation_boxes(flag_options={}, astro_params={}):
     """
     This *basically* runs  the whole of the driver, apart from the init stuff, and in the C code it frees all the
     arrays except for the "DataToBeReturned". This is *not* ideal, so we should change it. It means we need to use a
@@ -639,10 +653,13 @@ def compute_ionisation_boxes(perturb_boxes, flag_options={}, astro_params = {}, 
 
     flag_options.set_globals()
     astro_params.set_globals()
-
     # ==================================================================================================================
     # Initialize some variables (found in the driver routine)
     # ==================================================================================================================
+    if flag_options.GenerateNewICs:
+        lowres_density_redshift = _pyalloc("LOWRES_density_REDSHIFT", lib.HII_TOT_NUM_PIXELS)
+        lowres_velocity_redshift = _pyalloc("LOWRES_velocity_REDSHIFT", lib.HII_TOT_NUM_PIXELS)
+
     if flag_options.INHOMO_RECO:
         lib.INHOMO_RECO_R_BUBBLE_MAX = 50.0
         lib.R_BUBBLE_MAX = lib.INHOMO_RECO_R_BUBBLE_MAX
@@ -653,6 +670,8 @@ def compute_ionisation_boxes(perturb_boxes, flag_options={}, astro_params = {}, 
         # in the tmp_mem_buff object, which we shouldn't have to actually use. They will be killed at the end of this
         # function.
         tmp_mem_buff = _setup_lightcone()
+    else:
+        lib.Co_eval_box_counter = 0
 
     # Some weird stuff with LOS_direction
     lib.Original_LOS_direction = astro_params.LOS_direction
@@ -660,29 +679,25 @@ def compute_ionisation_boxes(perturb_boxes, flag_options={}, astro_params = {}, 
     lib.Stored_LOS_direction_state_1 = astro_params.LOS_direction
     lib.Stored_LOS_direction_state_2 = lib.LOS_direction
 
-
-    lib.NUM_BINS = int(np.ceil(np.log(lib.HII_DIM)/np.log(1.35)))  # This is gotten from the C code -- better than doing the whole init function.
+    lib.NUM_BINS = int(np.ceil(np.log(lib.HII_DIM) / np.log(
+        1.35)))  # This is gotten from the C code -- better than doing the whole init function.
     n_ps = lib.total_num_boxes if flag_options.USE_LIGHTCONE else lib.N_USER_REDSHIFT
 
-
     # Have to put these in the DataToBeReturned struct because they are filled there directly.
-    PSdata_k = np.zeros(n_ps*lib.NUM_BINS, dtype=np.float32)
+    PSdata_k = np.zeros(n_ps * lib.NUM_BINS, dtype=np.float32)
     PSdata = np.zeros(n_ps * lib.NUM_BINS, dtype=np.float32)
     lib.DataToBeReturned.PSData_k = ffi.cast("float *", ffi.from_buffer(PSdata_k))
     lib.DataToBeReturned.PSData = ffi.cast("float *", ffi.from_buffer(PSdata))
-    lc_box = np.zeros((lib.HII_DIM*lib.HII_DIM*lib.total_slice_ct), dtype=np.float32)
+    lc_box = np.zeros((lib.HII_DIM * lib.HII_DIM * lib.total_slice_ct), dtype=np.float32)
     lib.DataToBeReturned.LCBox = ffi.cast("float*", ffi.from_buffer(lc_box))
-
 
     aveNF = _pyalloc("aveNF", lib.N_USER_REDSHIFT)
     aveTb = _pyalloc("aveTb", lib.N_USER_REDSHIFT)
 
-
-
     if flag_options.USE_FCOLL_IONISATION_TABLE and flag_options.USE_LIGHTCONE:
         lib.ReadFcollTable()
 
-    if (lib.R_BUBBLE_MAX > lib.R_MFP_UB) and  lib.USE_FCOLL_IONISATION_TABLE:
+    if (lib.R_BUBBLE_MAX > lib.R_MFP_UB) and lib.USE_FCOLL_IONISATION_TABLE:
         raise ValueError(
             """
             The interpolation table for the ionisation box collapse fraction does not have the requisite sampling of the R_MFP.
@@ -695,7 +710,6 @@ def compute_ionisation_boxes(perturb_boxes, flag_options={}, astro_params = {}, 
         Ts_z = _pyalloc("Ts_z", lib.HII_TOT_NUM_PIXELS)
         x_e_z = _pyalloc("x_e_z", lib.HII_TOT_NUM_PIXELS)
 
-
     # Setup error function arrays, and store them in temporary variable.
     tmp_erf_buff = _setup_erf()
 
@@ -705,12 +719,10 @@ def compute_ionisation_boxes(perturb_boxes, flag_options={}, astro_params = {}, 
     # ==================================================================================================================
 
     if flag_options.USE_TS_FLUCT:
-        lib.GenerateNewICs = False  # In Ts we want to just read them from file, because we can't set them in memory from python.
         print("Computing Ts and Ionization Boxes...")
         lib.ComputeTsBoxes()
 
     else:
-        lib.GenerateNewICs = True   # This means we will use the ones we've set in memory.
         if flag_options.USE_LIGHTCONE:
             tr = tqdm(range(lib.N_USER_REDSHIFT))
         else:
@@ -719,17 +731,8 @@ def compute_ionisation_boxes(perturb_boxes, flag_options={}, astro_params = {}, 
 
         for i in tr:
             z = lib.redshifts[i]
-            tr.set_description("Ionizing z=%.2f"%lib.redshifts[i])
-
-            # Ensure that if perturb_boxes is a NpzFile, it gets actually read in
-            # It only needs to last for this redshift-iteration
-            pb = dict(perturb_boxes[i])
-
-            # Ensure we set the perturb_boxes into the global variables
-            for k, v in pb.items():
-                _pyalloc(k, v)
-
-            lib.ComputeIonisationBoxes(i, z, z+0.2, 1)
+            tr.set_description("Ionizing z=%.2f" % lib.redshifts[i])
+            lib.ComputeIonisationBoxes(i, z, z + 0.2, 0)
 
             if not flag_options.USE_LIGHTCONE:
                 delta_T.append(asarray(ffi, lib.delta_T, lib.HII_TOT_NUM_PIXELS).copy())
@@ -738,17 +741,16 @@ def compute_ionisation_boxes(perturb_boxes, flag_options={}, astro_params = {}, 
         lib.free_MHR()
         lib.destroy_inhomo_reco()
 
-    # TODO: Make sure that everything gets free'd properly
-
     if flag_options.USE_LIGHTCONE:
         return LightCone(flag_options.redshifts, aveNF, aveTb, PSdata, PSdata_k, lc_box,
-                         n_ps, lib.NUM_BINS, lib.HII_DIM)
+                         n_ps, lib.NUM_BINS, lib.HII_DIM, lib.BOX_LEN)
     else:
         return CoEval(flag_options.redshifts, aveNF, aveTb, delta_T, PSdata_k, PSdata, lib.NUM_BINS)
 
 
-def run_21cmfast(redshift, box_dim = {}, flag_options={}, astro_params={}, cosmo_params={},
-                 write=True, regenerate=False, run_perturb=True, run_ionize=True):
+def run_21cmfast(redshift, box_dim={}, flag_options={}, astro_params={}, cosmo_params={},
+                 write=True, regenerate=False, run_perturb=True, run_ionize=True, init_boxes=None,
+                 free_ps=True):
     """
     A high-level wrapper for 21cmFAST.
 
@@ -795,16 +797,37 @@ def run_21cmfast(redshift, box_dim = {}, flag_options={}, astro_params={}, cosmo
         Whether to run the ionization part of the process. Note that if `run_perturb` is False, this is automatically
         set to False.
 
+    init_boxes : boxes, optional
+        The boxes returned from :func:`compute_initial_conditions`. If this is passed in, the routine assumes
+        that compute_initial_conditions has been called in the particular session, so that various initialising
+        routines are *not* re-run. Do *not* just pass in boxes that you read in yourself.
+
+    free_ps : bool, optional
+        The initialization routine initialises the power spectrum, but if one wishes to repeatedly call this function
+        with the same init_boxes, one should not free the power spectrum variables.
+
     Returns
     -------
     out : None, LightCone or CoEval
         If Ionization is not run, returns nothing. Otherwise, returns a :class:`LightCone` or :class:`CoEval` object
         depending on input options.
     """
-    if not run_perturb:
-        run_ionize = False
-
+    # ==================================================================================================================
+    # Various setting up of parameters
+    # ==================================================================================================================
     flag_options['redshifts'] = redshift
+
+    # If we are regenerating initial conditions, and not writing them to file,
+    # this indicates that we want to regenerate them *inside* the C code, without writing.
+    # This is faster for MCMC where cosmology is being altered.
+    # Otherwise, we handle all the generating and writing from Python, but don't pass in perturbed boxes in memory,
+    # because that would be a huge amount of memory. Rather read it in within C on every iteration.
+    # We *could* read in the files in Python on every iteration and pass by memory, but there's no real benefit to
+    # doing this, and it *can't* be done for Ts.
+    if regenerate and not write:
+        flag_options['GenerateNewICs'] = True
+    else:
+        flag_options['GenerateNewICs'] = False
 
     # This *needs* to be done outside the functions, so that the Structure stick around in memory.
     if type(box_dim) != BoxDimStruct:
@@ -813,10 +836,6 @@ def run_21cmfast(redshift, box_dim = {}, flag_options={}, astro_params={}, cosmo
     if type(cosmo_params) != CosmoParamStruct:
         cosmo_params = CosmoParamStruct(**cosmo_params)
 
-    dir = ffi.string(box_dim.DIREC).decode()
-
-    init_boxes = compute_initial_conditions(box_dim, cosmo_params, regenerate=regenerate, write=write, dir=dir)
-
     if type(astro_params) != AstroParamStruct:
         astro_params = AstroParamStruct(flag_options.get("INHOMO_RECO", False), **astro_params)
 
@@ -824,18 +843,52 @@ def run_21cmfast(redshift, box_dim = {}, flag_options={}, astro_params={}, cosmo
     if type(flag_options) != FlagOptionStruct:
         flag_options = FlagOptionStruct(astro_params.Z_HEAT_MAX, astro_params.ZPRIME_STEP_FACTOR, **flag_options)
 
+    dir = ffi.string(box_dim.DIREC).decode()
+    if not run_perturb:
+        run_ionize=False
+    # ==================================================================================================================
 
+    # ==================================================================================================================
+    # The actual calls to the C code.
+    # ==================================================================================================================
+    if init_boxes is None:
+        init_boxes = compute_initial_conditions(box_dim, cosmo_params, regenerate=regenerate, write=write, dir=dir)
 
-    if run_perturb:
-        perturb_boxes = []
+    # We always run perturb if running ionize. If the boxes are already there, we waste minimal time, because all we do
+    # is check for their existence. The only time we don't need to run perturb is if we are generating new ICs within
+    # the C itself.
+    # At this point, this function does *not* ever return the perturbed boxes -- they are only ever a side-effect.
+    # Therefore, if it is run, it makes no sense *not* to write them out.
+    if run_perturb and not flag_options.GenerateNewICs:
         tr = tqdm(range(flag_options.N_USER_REDSHIFT))
         for i in tr:
             z = flag_options.redshifts[i]
-            tr.set_description("Perturbing Field, z=%.2f"%z)
-            perturb_boxes.append(compute_perturb_field(z, init_boxes, velocity_component=astro_params.LOS_direction,
-                                                       write=write, regenerate=regenerate, dir=dir))
+            tr.set_description("Perturbing Field, z=%.2f" % z)
+            compute_perturb_field(
+                z, init_boxes, velocity_component=astro_params.LOS_direction,
+                write=True, regenerate=regenerate, dir=dir, read=False
+            )
 
     if run_ionize:
-        output = compute_ionisation_boxes(perturb_boxes, flag_options, astro_params)
+        print(lib.HII_EFF_FACTOR)
+        output = compute_ionisation_boxes(flag_options, astro_params)
 
-        return output
+        # TODO: This is probably a bad idea. We should probably just try to check if init_ps has been called
+        # TODO: before ever calling it. Not sure if this then lends itself to a class setup instead.
+        if free_ps:
+            lib.free_ps()
+
+        return output, init_boxes
+
+    return init_boxes
+
+def compute_tau(redshifts, xHI, cosmo_params={}):
+    if type(cosmo_params) != CosmoParamStruct:
+        cosmo_params = CosmoParamStruct(**cosmo_params)
+
+    cosmo_params.set_globals()
+
+    return lib.tau_e(0, redshifts[-1],
+                     ffi.cast("float*", ffi.from_buffer(redshifts)),
+                     ffi.cast("float*", ffi.from_buffer(xHI)),
+                     len(redshifts))

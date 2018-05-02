@@ -133,6 +133,9 @@ ffi.cdef(
     
     // Stuff from ps.c
     void init_ps();
+    void free_ps();
+    
+    double tau_e(float zstart, float zend, float *zarry, float *xHarry, int len);
     """
 )
 

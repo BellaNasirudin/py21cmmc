@@ -15,24 +15,22 @@ Why does this file exist, and why not put this in __main__?
   Also see (1) from http://click.pocoo.org/5/setuptools/#setuptools-integration
 """
 import click
-#from ._utils import run_single_instance#get_single_box, run_perturb, check_init_existence, check_perturb_existence
 from . import plotting as plts
 import yaml
 import pickle
 import py21cmmc as p21c
 
-from .likelihood import Core21cmFastModule
 import sys
 from os import path
-from cosmoHammer import LikelihoodComputationChain, CosmoHammerSampler
-from cosmoHammer.util import Params
 import os
+from .mcmc import run_mcmc
+
 
 def _get_config(config=None):
     if config is None:
-        config = path.expanduser(path.join("~", ".py21cmmc","example_config.yml"))
+        config = path.expanduser(path.join("~", ".py21cmmc", "example_config.yml"))
 
-    with open(config,"r") as f:
+    with open(config, "r") as f:
         cfg = yaml.load(f)
 
     return cfg
@@ -53,9 +51,9 @@ def _single(config=None, write=True, regen=False, outdir="", datafile=None, plot
         cfg['cosmo_parameters'], write=write, regenerate=regen, run_perturb=run_perturb, run_ionize=run_ionize
     )
 
-    if outputs is not None: #outputs is None if ionization is not run.
+    if outputs is not None:  # outputs is None if ionization is not run.
         if datafile is None:
-            datafile = "" #TODO: would be better if we made an automatic filename system.
+            datafile = ""  # TODO: would be better if we made an automatic filename system.
 
         if datafile:
             with open(path.join(outdir, datafile), 'wb') as f:
@@ -63,7 +61,7 @@ def _single(config=None, write=True, regen=False, outdir="", datafile=None, plot
 
         if "global" in plot:
             fig, ax = plts.plot_global_data(outputs)
-            fig.savefig(path.join(outdir, datafile+"_global_plot.pdf"))
+            fig.savefig(path.join(outdir, datafile + "_global_plot.pdf"))
 
         if "power" in plot:
             fig, ax = plts.plot_power_spec_1D(outputs)
@@ -85,9 +83,9 @@ def _single(config=None, write=True, regen=False, outdir="", datafile=None, plot
               help="directory to write data and plots to -- must exist.")
 @click.option("--datafile", type=str, default=None, help="name of outputted datafile (default empty -- no writing)")
 @click.option("--plot", multiple=True, help="types of pdf plots to save. Valid values are [global, power, slice]")
-@click.option("--perturb/--no-perturb", default = True,
+@click.option("--perturb/--no-perturb", default=True,
               help="Whether to run the perturbed field calculation")
-@click.option("--ionize/--no-ionize", default = True,
+@click.option("--ionize/--no-ionize", default=True,
               help="Whether to run the ionization calculation")
 def single(config, write, regen, outdir, datafile, plot, perturb, ionize):
     return _single(config, write, regen, outdir, datafile, plot, perturb, ionize)
@@ -120,59 +118,27 @@ def perturb_field(config, regen, outdir):
     _single(config, write=True, regen=regen, outdir=outdir, datafile=None, plot=[], run_perturb=True, run_ionize=False)
 
 
-
 @main.command()
 @click.option("--config", type=click.Path(exists=True, dir_okay=False), default=None,
               help="Path to the configuration file (default ~/.py21cmmc/example_config_mcmc.yml)")
 def mcmc(config):
-    cfg = _get_config(config or path.expanduser(path.join("~", ".py21cmmc","example_config_mcmc.yml")))
-    cfg['flag_options'].update(redshifts=cfg['redshifts'])
+    cfg = _get_config(config or path.join(path.expanduser('~'), '.py21cmmc', 'example_config_mcmc.yml'))
 
-    try:
-        os.mkdir(cfg['storage_options']['DATADIR'])
-    except:
-        pass
-
-    # Setup parameters.
-    params = Params(*[(k, v[1:]) for k, v in cfg['parameters'].items()])
-
-    # Setup the Core Module
-    core_module = Core21cmFastModule(
-        cfg['parameters'], cfg['storage_options'],cfg['box_dim'], cfg['flag_options'],
-        cfg['astro_parameters'], cfg['cosmo_parameters']
-    )
-
-    # Get all the likelihood modules.
-    likelihoods = [getattr(sys.modules['py21cmmc.likelihood'], "Likelihood%s"%k)(**v) for k,v in cfg['likelihoods'].items()]
-
-    chain = LikelihoodComputationChain(min=params[:,1], max = params[:,2])
-    chain.addCoreModule(core_module)
-    for lk in likelihoods:
-        chain.addLikelihoodModule(lk)
-    chain.setup()
-
-    sampler = CosmoHammerSampler(
-        params= params,
-        likelihoodComputationChain=chain,
-        filePrefix=path.join(cfg['storage_options']['DATADIR'], "ReionModel_21cmFAST"),
-        walkersRatio = cfg['walkersRatio'],
-        burninIterations=cfg['burninIterations'],
-        sampleIterations=cfg['sampleIterations'],
-        threadCount = cfg['threadCount']
-    )
-
-    # The sampler writes to file, so no need to save anything ourselves.
-    sampler.startSampling()
+    run_mcmc(cfg['redshifts'], cfg['parameters'], cfg['storage_options'],
+             cfg['box_dim'], cfg['flag_options'], cfg['astro_params'], cfg['cosmo_params'],
+             extra_core_modules=[],
+             likelihood_modules=[(k, v) for k, v in cfg['likelihoods'].items()], **cfg['mcmc_options']
+             )
 
 
 @main.command()
 def defaults():
     for nm, inst in [("Flag Options", p21c.FlagOptionStruct(redshifts=[9.0])),
                      ("Astrophysical Parameters", p21c.AstroParamStruct(INHOMO_RECO=False)),
-                     ("Cosmological Parameters",p21c.CosmoParamStruct()),
+                     ("Cosmological Parameters", p21c.CosmoParamStruct()),
                      ("Box Dimensions", p21c.BoxDimStruct())]:
-        print(nm+": ")
-        print("-"*26)
+        print(nm + ": ")
+        print("-" * 26)
         for k in p21c.ffi.typeof(inst.cstruct[0]).fields:
-            print("%-26s: %s"%(k[0], getattr(inst, k[0])))
+            print("%-26s: %s" % (k[0], getattr(inst, k[0])))
         print()
