@@ -150,7 +150,8 @@ TODO (Before Release/Merging with master)
 Documentation
 =============
 
-https://py21cmmc.readthedocs.io/
+To view the docs, install the ``requirements_dev.txt`` packages, go to the docs/ folder, and type "make html", then
+open the ``index.html`` file in the ``_build/html`` directory.
 
 Development
 ===========
@@ -164,8 +165,8 @@ and at the moment, each of them takes as its main argument a ``Lightcone`` or ``
 passed back from the C driver. The ``_utils.py`` module contains a couple of functions for writing out the parameter
 files which can be read in by the C driver. I have not made use of these in the rest of the code, however.
 
-The actual Python wrappers of the C, at its basic level, are found in ``wrapper.py``. All the C code lives in the
- ``_21cmfast`` folder and is compiled by ``setup.py`` from here (this required changing some of the includes in the C files).
+The actual Python wrappers of the C, at its basic level, are found in ``wrapper.py``. All the C code lives in the ``_21cmfast``
+folder and is compiled by ``setup.py`` from here (this required changing some of the includes in the C files).
 
 The wrapping is done with CFFI, rather than the native ctypes. This allows for less redundant specification of types
 etc. The things to watch out for, when using CFFI, is the memory management. If an array is created in Python, and a

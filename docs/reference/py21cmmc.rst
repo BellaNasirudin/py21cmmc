@@ -5,5 +5,13 @@ py21cmmc
 
     from py21cmmc import *
 
-.. automodule:: py21cmmc
-    :members:
+.. autosummary::
+    :toctree: _autosummary
+
+    py21cmmc.wrapper
+    py21cmmc.likelihood
+    py21cmmc.plotting
+    py21cmmc.mcmc
+
+
+

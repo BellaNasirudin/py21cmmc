@@ -20,6 +20,8 @@ if os.getenv('SPELLCHECK'):
     spelling_show_suggestions = True
     spelling_lang = 'en_US'
 
+autosummary_generate=True
+
 source_suffix = '.rst'
 master_doc = 'index'
 project = 'py21cmmc'
