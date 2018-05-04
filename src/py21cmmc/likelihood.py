@@ -262,7 +262,7 @@ class Core21cmFastModule:
 
 
 class LikelihoodBase:
-    def __init__(self, box_dim, flag_options, astro_params, cosmo_params):
+    def __init__(self, box_dim={}, flag_options={}, astro_params={}, cosmo_params={}):
         # Save the following only as dictionaries (not full Structure objects), so that we can avoid
         # weird pickling errors.
         self._box_dim = box_dim
