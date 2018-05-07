@@ -20,7 +20,7 @@ def run_mcmc(redshift, parameters, storage_options, box_dim = {}, flag_options={
 
     # Setup the Core Module
     core_module = Core21cmFastModule(
-        parameters, storage_options=storage_options, box_dim = box_dim, flag_options=flag_options,
+        params.keys, storage_options=storage_options, box_dim = box_dim, flag_options=flag_options,
         astro_params=astro_params, cosmo_params=cosmo_params
     )
 
