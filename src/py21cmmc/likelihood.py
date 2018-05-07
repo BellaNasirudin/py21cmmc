@@ -37,13 +37,12 @@ class Core21cmFastModule:
         "KEEP_GLOBAL_DATA":True
     }
 
-    def __init__(self, parameters,
+    def __init__(self, parameter_names,
                  storage_options={},
                  box_dim={}, flag_options={}, astro_params={}, cosmo_params={}):
 
         # SETUP variables
-        self.parameters = parameters
-        self.param_string_names = [v[0] for v in self.parameters.values()]
+        self.parameter_names = parameter_names
 
         self.storage_options.update(**storage_options)
 
@@ -62,7 +61,7 @@ class Core21cmFastModule:
         self._modifying_cosmo = False
         # The following ensures that if we are changing cosmology in the MCMC, then we re-do the init
         # and perturb_field parts on each iteration.
-        for p in self.parameters.keys():
+        for p in self.parameter_names:
             if p in p21c.CosmoParamStruct._defaults_.keys():
                 self._flag_options['GenerateNewICs'] = True
                 self._write_init = False
