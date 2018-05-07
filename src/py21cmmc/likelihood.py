@@ -120,18 +120,23 @@ class Core21cmFastModule:
         params = ctx.getParams()
 
         # Copy the main parameter structures (can't write to them otherwise each walker will over-write each other)
+#        AstroParams = deepcopy(self._astro_params)
+#        CosmoParams = deepcopy(self._cosmo_params)
 
-        AstroParams = deepcopy(self._astro_params)
-        CosmoParams = deepcopy(self._cosmo_params)
+        apkeys = self.astro_params().c_initializer
+        cpkeys = self.cosmo_params().c_initializer
+
+        AstroParams = {}
+        CosmoParams = {}
 
         # Update the Astrophysical/Cosmological Parameters for this iteration
         for k in params.keys:
-            if k in AstroParams:
+            if k in apkeys:
                 AstroParams[k] = getattr(params,k)
             elif k in CosmoParams:
                 CosmoParams[k] = getattr(params,k)
             else:
-                raise ValueError("Something went wrong.")
+                raise ValueError("Key %s is not in AstroParams or CosmoParams "%k)
 
         if self._regen_init:
             # A random number between 1 and 10^12 should be sufficient to randomise the ICs

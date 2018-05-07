@@ -9,6 +9,7 @@ def run_mcmc(redshift, parameters, storage_options, box_dim = {}, flag_options={
              extra_core_modules=[], likelihood_modules = [], **mcmc_options):
 
     flag_options['redshifts'] = redshift
+    box_dim['DIREC'] = storage_options['DATADIR']
 
     try:
         mkdir(storage_options['DATADIR'])
@@ -36,7 +37,12 @@ def run_mcmc(redshift, parameters, storage_options, box_dim = {}, flag_options={
                                                                 flag_options=flag_options,
                                                                 **lk[1])]
             else:
-                likelihoods += [lk[0](**lk[1])]
+                likelihoods += [lk[0](
+                    box_dim = box_dim,
+                    astro_params=astro_params,
+                    cosmo_params=cosmo_params,
+                    flag_options=flag_options,**lk[1]
+                )]
 
         else:
             likelihoods += [lk]
