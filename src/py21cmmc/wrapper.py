@@ -14,6 +14,8 @@ from ._utils import write_walker_cosmology_file, write_walker_file
 from ._asarray import asarray
 from os import path, mkdir
 from tqdm import tqdm
+from astropy.cosmology import Planck15, z_at_value
+from astropy.units import Mpc
 
 
 def _pyalloc(name, length, tp=None):
@@ -384,7 +386,7 @@ class LightCone:
 
     def __init__(self, redshifts, average_nf, average_Tb, power, k, lightcone_box, n_ps, num_bins, HII_DIM, box_len):
 
-        self.redshifts = redshifts[::-1]
+        self.redshifts_eval = redshifts[::-1]
         self.average_nf = average_nf[::-1]
         self.average_Tb = average_Tb[::-1]
 
@@ -402,8 +404,15 @@ class LightCone:
         self.lightcone_box = lightcone_box.reshape(
             (HII_DIM, HII_DIM, -1)
         )
-        self.box_len = box_len
 
+        self.box_len = box_len
+        self.box_len_lightcone = (self.box_len/HII_DIM)*self.lightcone_box.shape[-1]
+
+        # Find the redshifts at each slice.
+        init_d = Planck15.comoving_distance(self.redshifts_eval.min()).value
+        final_d = init_d + self.box_len_lightcone
+        d = np.linspace(init_d, final_d, self.lightcone_box.shape[-1]) * Mpc
+        self.redshifts_slices = np.array([z_at_value(Planck15.comoving_distance, dd) for dd in d])
 
 class CoEval:
     def __init__(self, redshifts, ave_nf, ave_Tb, delta_T, power_k=None, power_spectrum=None, ps_bins=None):
