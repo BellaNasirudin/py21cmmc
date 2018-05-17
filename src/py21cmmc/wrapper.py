@@ -384,26 +384,14 @@ class LightCone:
     to make them easier to handle in Python.
     """
 
-    def __init__(self, redshifts, average_nf, average_Tb, power, k, lightcone_box, n_ps, num_bins, HII_DIM, box_len):
-
-        self.redshifts_eval = redshifts[::-1]
-        self.average_nf = average_nf[::-1]
-        self.average_Tb = average_Tb[::-1]
-
-        k_offset = 2
-        self.power_spectrum = np.zeros((n_ps, num_bins - k_offset))
-        self.k = np.zeros(num_bins - k_offset)
-
-
-        for i in range(n_ps):
-            for j in range(num_bins - k_offset):
-                self.power_spectrum[i][j] = (power[(j + k_offset) + num_bins * i])
-                if i == 0:
-                    self.k[j] = (k[(j + k_offset) + num_bins * 0])
+    def __init__(self, redshifts,  lightcone_box, HII_DIM, box_len,
+                 average_nf=None, average_Tb=None,  power=None, k=None, n_ps=None, num_bins=None):
 
         self.lightcone_box = lightcone_box.reshape(
             (HII_DIM, HII_DIM, -1)
         )
+
+        self.redshifts_eval = redshifts[::-1]
 
         self.box_len = box_len
         self.box_len_lightcone = (self.box_len/HII_DIM)*self.lightcone_box.shape[-1]
@@ -413,6 +401,23 @@ class LightCone:
         final_d = init_d + self.box_len_lightcone
         d = np.linspace(init_d, final_d, self.lightcone_box.shape[-1]) * Mpc
         self.redshifts_slices = np.array([z_at_value(Planck15.comoving_distance, dd) for dd in d])
+
+        if average_nf is not None:
+            self.average_nf = average_nf[::-1]
+        if average_Tb is not None:
+            self.average_Tb = average_Tb[::-1]
+
+        if power is not None:
+            k_offset = 2
+            self.power_spectrum = np.zeros((n_ps, num_bins - k_offset))
+            self.k = np.zeros(num_bins - k_offset)
+
+            for i in range(n_ps):
+                for j in range(num_bins - k_offset):
+                    self.power_spectrum[i][j] = (power[(j + k_offset) + num_bins * i])
+                    if i == 0:
+                        self.k[j] = (k[(j + k_offset) + num_bins * 0])
+
 
 class CoEval:
     def __init__(self, redshifts, ave_nf, ave_Tb, delta_T, power_k=None, power_spectrum=None, ps_bins=None):
@@ -653,7 +658,7 @@ def _setup_erf():
     return (ERFC_VALS, ERFC_VALS_DIFF)
 
 
-def compute_ionisation_boxes(flag_options={}, astro_params={}):
+def compute_ionisation_boxes(flag_options={}, astro_params={}, progress_bar=True):
     """
     This *basically* runs  the whole of the driver, apart from the init stuff, and in the C code it frees all the
     arrays except for the "DataToBeReturned". This is *not* ideal, so we should change it. It means we need to use a
@@ -733,9 +738,9 @@ def compute_ionisation_boxes(flag_options={}, astro_params={}):
 
     else:
         if flag_options.USE_LIGHTCONE:
-            tr = tqdm(range(lib.N_USER_REDSHIFT))
+            tr = tqdm(range(lib.N_USER_REDSHIFT), disable=not progress_bar)
         else:
-            tr = tqdm(range(lib.N_USER_REDSHIFT)[::-1])
+            tr = tqdm(range(lib.N_USER_REDSHIFT)[::-1], disable=not progress_bar)
             delta_T = []
 
         for i in tr:
@@ -751,15 +756,16 @@ def compute_ionisation_boxes(flag_options={}, astro_params={}):
         lib.destroy_inhomo_reco()
 
     if flag_options.USE_LIGHTCONE:
-        return LightCone(flag_options.redshifts, aveNF, aveTb, PSdata, PSdata_k, lc_box,
-                         n_ps, lib.NUM_BINS, lib.HII_DIM, lib.BOX_LEN)
+        return LightCone(flag_options.redshifts,   lc_box, lib.HII_DIM, lib.BOX_LEN,
+                         average_nf=aveNF, average_Tb=aveTb,
+                         power=PSdata, k=PSdata_k,n_ps=n_ps, num_bins=lib.NUM_BINS)
     else:
         return CoEval(flag_options.redshifts, aveNF, aveTb, delta_T, PSdata_k, PSdata, lib.NUM_BINS)
 
 
 def run_21cmfast(redshift, box_dim={}, flag_options={}, astro_params={}, cosmo_params={},
                  write=True, regenerate=False, run_perturb=True, run_ionize=True, init_boxes=None,
-                 free_ps=True):
+                 free_ps=True, progress_bar=True):
     """
     A high-level wrapper for 21cmFAST.
 
@@ -869,7 +875,7 @@ def run_21cmfast(redshift, box_dim={}, flag_options={}, astro_params={}, cosmo_p
     # At this point, this function does *not* ever return the perturbed boxes -- they are only ever a side-effect.
     # Therefore, if it is run, it makes no sense *not* to write them out.
     if run_perturb and not flag_options.GenerateNewICs:
-        tr = tqdm(range(flag_options.N_USER_REDSHIFT))
+        tr = tqdm(range(flag_options.N_USER_REDSHIFT), disable=not progress_bar)
         for i in tr:
             z = flag_options.redshifts[i]
             tr.set_description("Perturbing Field, z=%.2f" % z)
@@ -879,8 +885,7 @@ def run_21cmfast(redshift, box_dim={}, flag_options={}, astro_params={}, cosmo_p
             )
 
     if run_ionize:
-        print(lib.HII_EFF_FACTOR)
-        output = compute_ionisation_boxes(flag_options, astro_params)
+        output = compute_ionisation_boxes(flag_options, astro_params, progress_bar=progress_bar)
 
         # TODO: This is probably a bad idea. We should probably just try to check if init_ps has been called
         # TODO: before ever calling it. Not sure if this then lends itself to a class setup instead.

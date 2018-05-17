@@ -1,4 +1,4 @@
-from .likelihood import Core21cmFastModule
+from .core import Core21cmFastModule
 import sys
 from os import path, mkdir
 from cosmoHammer import LikelihoodComputationChain, CosmoHammerSampler
@@ -24,6 +24,11 @@ def run_mcmc(redshift, parameters, storage_options, box_dim = {}, flag_options={
         params.keys, storage_options=storage_options, box_dim = box_dim, flag_options=flag_options,
         astro_params=astro_params, cosmo_params=cosmo_params
     )
+
+    # Write the parameter names to a file, might be useful later.
+    param_names = [v[0] for v in parameters.values()]
+    with open(path.join(storage_options['DATADIR'], "parameter_names.txt"), 'w') as f:
+        f.write("\n".join(param_names)+'\n')
 
     # Get all the likelihood modules.
     likelihoods = []

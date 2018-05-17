@@ -118,7 +118,8 @@ setup(
         'numpy',
         'pyyaml',
         'cosmoHammer',
-        'cffi>=1.0'
+        'cffi>=1.0',
+        'scipy'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={

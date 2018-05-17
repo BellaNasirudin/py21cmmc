@@ -1,11 +1,3 @@
-# import numpy as np
-# from tqdm import tqdm
-# import os.path as pth
-# from collections import OrderedDict
-# import ctypes
-#
-# from . import drive_21cmMC, get_parameters
-
 
 def write_walker_file(flag_options, astro_params, random_ids= ('3.000000', '3.000000')):
     separator = " "
